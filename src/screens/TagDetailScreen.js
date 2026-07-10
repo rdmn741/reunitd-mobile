@@ -13,6 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { usePreventScreenCapture } from 'expo-screen-capture';
 import { setLostMode, updateTag, updateTagSettings, deleteTag, updateMe, getErrorMessage } from '../api';
 import { useAuth } from '../AuthContext';
 import DisclaimerModal from '../components/DisclaimerModal';
@@ -189,6 +190,7 @@ function FieldToggleRow({ fieldCfg, isOn, onToggle, parent, onSaveField }) {
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function TagDetailScreen({ route, navigation }) {
+  usePreventScreenCapture();
   const { tag: initialTag } = route.params;
   const [tag, setTag] = useState(initialTag);
   const { parent, updateParent } = useAuth();

@@ -11,6 +11,7 @@ import {
   Switch,
 } from 'react-native';
 import { getTags, setLostMode, updateTagSettings, getErrorMessage } from '../api';
+import DisclaimerModal from './DisclaimerModal';
 
 // The info fields a guardian can reveal to finders. Sensitive ones get a
 // confirmation before they're exposed on the public scan page.
@@ -31,6 +32,7 @@ export default function QuickActionSheet({ visible, tagId, scanInfo, onClose, on
   const [tag, setTag] = useState(null);
   const [lostBusy, setLostBusy] = useState(false);
   const [fieldBusy, setFieldBusy] = useState(null);
+  const [disclaimerField, setDisclaimerField] = useState(null);
 
   const load = useCallback(async () => {
     if (!tagId) return;
@@ -70,14 +72,8 @@ export default function QuickActionSheet({ visible, tagId, scanInfo, onClose, on
 
   function onToggleField(field, newValue, sensitive) {
     if (newValue && sensitive) {
-      Alert.alert(
-        'Show this to finders?',
-        'This information will be visible to anyone who scans your tag. Only turn it on if you want finders to see it.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Show it', onPress: () => applyField(field, newValue) },
-        ]
-      );
+      // Enabling a sensitive field requires the full privacy disclaimer.
+      setDisclaimerField(field);
     } else {
       applyField(field, newValue);
     }
@@ -168,6 +164,17 @@ export default function QuickActionSheet({ visible, tagId, scanInfo, onClose, on
           </TouchableOpacity>
         </View>
       </View>
+
+      <DisclaimerModal
+        visible={!!disclaimerField}
+        fieldName={disclaimerField}
+        onAgree={() => {
+          const f = disclaimerField;
+          setDisclaimerField(null);
+          if (f) applyField(f, true);
+        }}
+        onCancel={() => setDisclaimerField(null)}
+      />
     </Modal>
   );
 }

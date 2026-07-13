@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -23,6 +23,7 @@ import ScanHistoryScreen from './src/screens/ScanHistoryScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import ShopScreen from './src/screens/ShopScreen';
+import QuickActionSheet from './src/components/QuickActionSheet';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -119,6 +120,18 @@ function AppTabs() {
 function RootNavigator() {
   const { parent, loading } = useAuth();
   const navigationRef = useRef(null);
+  // Quick-action sheet shown when a finder's scan alert arrives
+  const [quickTagId, setQuickTagId] = useState(null);
+  const [quickScan, setQuickScan] = useState(null);
+
+  const openQuickActions = useCallback((data) => {
+    if (data && data.tagId) {
+      setQuickTagId(data.tagId);
+      setQuickScan(data.scanLog || null);
+      return true;
+    }
+    return false;
+  }, []);
 
   // Register for push notifications after login
   useEffect(() => {
@@ -131,23 +144,25 @@ function RootNavigator() {
   useEffect(() => {
     if (!parent) return;
 
+    // Tapping a scan alert opens the quick-action sheet for that tag;
+    // any other notification falls back to the Notifications tab.
     const responseSub = setupNotificationResponseListener((data) => {
-      if (navigationRef.current) {
+      if (!openQuickActions(data) && navigationRef.current) {
         navigationRef.current.navigate('Notifications');
       }
     });
 
+    // A scan alert arriving while the app is open auto-opens the quick sheet.
     const foregroundSub = setupForegroundNotificationListener((notification) => {
-      // Foreground handler is set in notifications.js via setNotificationHandler
-      // This is just for any additional in-app logic
-      console.log('Foreground notification received:', notification.request.content.title);
+      const data = notification?.request?.content?.data;
+      openQuickActions(data);
     });
 
     return () => {
       responseSub.remove();
       foregroundSub.remove();
     };
-  }, [parent]);
+  }, [parent, openQuickActions]);
 
   if (loading) {
     return (
@@ -163,6 +178,22 @@ function RootNavigator() {
   return (
     <NavigationContainer ref={navigationRef}>
       {parent ? <AppTabs /> : <AuthStack />}
+      {parent && (
+        <QuickActionSheet
+          visible={!!quickTagId}
+          tagId={quickTagId}
+          scanInfo={quickScan}
+          onClose={() => {
+            setQuickTagId(null);
+            setQuickScan(null);
+          }}
+          onOpenDetails={(tag) => {
+            if (navigationRef.current) {
+              navigationRef.current.navigate('Dashboard', { screen: 'TagDetail', params: { tag } });
+            }
+          }}
+        />
+      )}
     </NavigationContainer>
   );
 }

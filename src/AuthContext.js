@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { getMe, login as apiLogin, verifyTwoFactor, TOKEN_STORE_KEY, setUnauthorizedHandler } from './api';
+import { getMe, login as apiLogin, verifyTwoFactor, setTwoFactorEnabled, TOKEN_STORE_KEY, setUnauthorizedHandler } from './api';
 import { isBiometricEnabled, isBiometricAvailable, authenticateWithBiometrics } from './biometrics';
 
 const REMEMBERED_TOKEN_KEY = 'reunitd_remembered_token';
@@ -11,6 +11,7 @@ export function AuthProvider({ children }) {
   const [parent, setParent] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true); // booting
+  const [mfaPromptVisible, setMfaPromptVisible] = useState(false);
 
   const logout = useCallback(async (pushToken = null) => {
     try {
@@ -113,8 +114,22 @@ export function AuthProvider({ children }) {
     await SecureStore.setItemAsync(TOKEN_STORE_KEY, data.token);
     setToken(data.token);
     setParent(data.parent);
+    // Nudge the user to turn on 2FA if they haven't. Fires on every interactive
+    // login/signup (register() calls login()), but not on session restore or
+    // biometric unlock, which don't go through here.
+    if (data.parent && !data.parent.twoFactorEnabled) {
+      setMfaPromptVisible(true);
+    }
     return data;
   }, []);
+
+  const enableMfaFromPrompt = useCallback(async () => {
+    await setTwoFactorEnabled(true);
+    setParent((p) => (p ? { ...p, twoFactorEnabled: true } : p));
+    setMfaPromptVisible(false);
+  }, []);
+
+  const dismissMfaPrompt = useCallback(() => setMfaPromptVisible(false), []);
 
   // Complete a 2FA login with the emailed code + temp token from login().
   const completeTwoFactor = useCallback(async (tempToken, code) => {
@@ -137,7 +152,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ parent, token, loading, login, completeTwoFactor, logout, loginWithBiometric, refreshParent, updateParent }}
+      value={{ parent, token, loading, login, completeTwoFactor, logout, loginWithBiometric, refreshParent, updateParent, mfaPromptVisible, enableMfaFromPrompt, dismissMfaPrompt }}
     >
       {children}
     </AuthContext.Provider>

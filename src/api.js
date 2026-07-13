@@ -75,6 +75,11 @@ export async function resendTwoFactor(tempToken) {
   return response.data;
 }
 
+export async function setTwoFactorEnabled(enabled) {
+  const response = await api.put('/api/auth/2fa', { enabled });
+  return response.data; // { twoFactorEnabled }
+}
+
 export async function register(data) {
   const response = await api.post('/api/auth/register', data);
   return response.data;

@@ -24,6 +24,7 @@ import NotificationsScreen from './src/screens/NotificationsScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import ShopScreen from './src/screens/ShopScreen';
 import QuickActionSheet from './src/components/QuickActionSheet';
+import EnableTwoFactorPrompt from './src/components/EnableTwoFactorPrompt';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -118,7 +119,7 @@ function AppTabs() {
 
 // ─── Root Navigator ───────────────────────────────────────────────────────────
 function RootNavigator() {
-  const { parent, loading } = useAuth();
+  const { parent, loading, mfaPromptVisible, enableMfaFromPrompt, dismissMfaPrompt } = useAuth();
   const navigationRef = useRef(null);
   // Quick-action sheet shown when a finder's scan alert arrives
   const [quickTagId, setQuickTagId] = useState(null);
@@ -192,6 +193,13 @@ function RootNavigator() {
               navigationRef.current.navigate('Dashboard', { screen: 'TagDetail', params: { tag } });
             }
           }}
+        />
+      )}
+      {parent && (
+        <EnableTwoFactorPrompt
+          visible={mfaPromptVisible}
+          onEnable={enableMfaFromPrompt}
+          onDismiss={dismissMfaPrompt}
         />
       )}
     </NavigationContainer>

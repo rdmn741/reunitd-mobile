@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { getMe, login as apiLogin, TOKEN_STORE_KEY, setUnauthorizedHandler } from './api';
+import { getMe, login as apiLogin, verifyTwoFactor, TOKEN_STORE_KEY, setUnauthorizedHandler } from './api';
 import { isBiometricEnabled, isBiometricAvailable, authenticateWithBiometrics } from './biometrics';
 
 const REMEMBERED_TOKEN_KEY = 'reunitd_remembered_token';
@@ -105,6 +105,20 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const data = await apiLogin(email, password);
+    // Account has 2FA enabled — no session token yet; caller must complete the
+    // code step via completeTwoFactor(). Don't store anything here.
+    if (data.twoFactorRequired) {
+      return data; // { twoFactorRequired: true, tempToken }
+    }
+    await SecureStore.setItemAsync(TOKEN_STORE_KEY, data.token);
+    setToken(data.token);
+    setParent(data.parent);
+    return data;
+  }, []);
+
+  // Complete a 2FA login with the emailed code + temp token from login().
+  const completeTwoFactor = useCallback(async (tempToken, code) => {
+    const data = await verifyTwoFactor(tempToken, code);
     await SecureStore.setItemAsync(TOKEN_STORE_KEY, data.token);
     setToken(data.token);
     setParent(data.parent);
@@ -123,7 +137,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ parent, token, loading, login, logout, loginWithBiometric, refreshParent, updateParent }}
+      value={{ parent, token, loading, login, completeTwoFactor, logout, loginWithBiometric, refreshParent, updateParent }}
     >
       {children}
     </AuthContext.Provider>

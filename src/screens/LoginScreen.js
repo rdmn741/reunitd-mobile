@@ -13,14 +13,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../AuthContext';
-import { getErrorMessage } from '../api';
+import { getErrorMessage, resendTwoFactor } from '../api';
 import { isBiometricAvailable, isBiometricEnabled, getBiometricLabel } from '../biometrics';
 import * as SecureStore from 'expo-secure-store';
 
 const REMEMBERED_TOKEN_KEY = 'reunitd_remembered_token';
 
 export default function LoginScreen({ navigation }) {
-  const { login, loginWithBiometric } = useAuth();
+  const { login, completeTwoFactor, loginWithBiometric } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,6 +28,11 @@ export default function LoginScreen({ navigation }) {
   const [showBiometric, setShowBiometric] = useState(false);
   const [biometricLabel, setBiometricLabelState] = useState('Face ID');
   const [biometricLoading, setBiometricLoading] = useState(false);
+  // 2FA step (set when login returns twoFactorRequired)
+  const [tempToken, setTempToken] = useState(null);
+  const [code, setCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [resending, setResending] = useState(false);
 
   useEffect(() => {
     async function checkBiometric() {
@@ -64,13 +69,52 @@ export default function LoginScreen({ navigation }) {
 
     setLoading(true);
     try {
-      await login(trimEmail, password);
-      // Navigation handled by root navigator watching auth state
+      const data = await login(trimEmail, password);
+      if (data && data.twoFactorRequired) {
+        // Account has 2FA — switch to the code-entry step
+        setTempToken(data.tempToken);
+        setCode('');
+      }
+      // Otherwise navigation is handled by root navigator watching auth state
     } catch (err) {
       Alert.alert('Login Failed', getErrorMessage(err));
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleVerify() {
+    if (code.length !== 6) {
+      Alert.alert('Invalid Code', 'Please enter the 6-digit code from your email.');
+      return;
+    }
+    setVerifying(true);
+    try {
+      await completeTwoFactor(tempToken, code);
+      // Navigation handled by root navigator watching auth state
+    } catch (err) {
+      Alert.alert('Verification Failed', getErrorMessage(err));
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  async function handleResend() {
+    setResending(true);
+    try {
+      await resendTwoFactor(tempToken);
+      Alert.alert('Code Sent', 'A new verification code is on its way to your email.');
+    } catch (err) {
+      Alert.alert('Could Not Resend', getErrorMessage(err));
+    } finally {
+      setResending(false);
+    }
+  }
+
+  function cancelTwoFactor() {
+    setTempToken(null);
+    setCode('');
+    setPassword('');
   }
 
   return (
@@ -90,7 +134,46 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.tagline}>If someone you love gets lost,{'\n'}one tap reaches you</Text>
           </View>
 
-          <View style={styles.card}>
+          {tempToken ? (
+            <View style={styles.card}>
+              <Text style={styles.heading}>Check your email</Text>
+              <Text style={styles.subheading}>Enter the 6-digit code we sent to {email}</Text>
+
+              <Text style={styles.label}>Verification code</Text>
+              <TextInput
+                style={[styles.input, styles.codeInput]}
+                placeholder="000000"
+                placeholderTextColor="#9ca3af"
+                keyboardType="number-pad"
+                maxLength={6}
+                autoFocus
+                returnKeyType="done"
+                value={code}
+                onChangeText={(t) => setCode(t.replace(/[^0-9]/g, ''))}
+                onSubmitEditing={handleVerify}
+              />
+
+              <TouchableOpacity
+                style={[styles.loginButton, verifying && styles.loginButtonDisabled]}
+                onPress={handleVerify}
+                disabled={verifying}
+              >
+                {verifying ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.loginButtonText}>Verify & Sign In</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.centerLink} onPress={handleResend} disabled={resending}>
+                <Text style={styles.forgotText}>{resending ? 'Sending…' : 'Resend code'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.centerLinkTight} onPress={cancelTwoFactor}>
+                <Text style={styles.backText}>← Back to login</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.card}>
             <Text style={styles.heading}>Welcome Back</Text>
             <Text style={styles.subheading}>Sign in to your account</Text>
 
@@ -166,14 +249,17 @@ export default function LoginScreen({ navigation }) {
                 )}
               </TouchableOpacity>
             )}
-          </View>
+            </View>
+          )}
 
-          <View style={styles.registerRow}>
-            <Text style={styles.registerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.registerLink}>Create one</Text>
-            </TouchableOpacity>
-          </View>
+          {!tempToken && (
+            <View style={styles.registerRow}>
+              <Text style={styles.registerText}>Don't have an account? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+                <Text style={styles.registerLink}>Create one</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -262,6 +348,16 @@ const styles = StyleSheet.create({
   },
   eyeButton: { paddingHorizontal: 12 },
   eyeText: { fontSize: 18 },
+  codeInput: {
+    textAlign: 'center',
+    fontSize: 26,
+    letterSpacing: 8,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  centerLink: { alignSelf: 'center', marginTop: 18 },
+  centerLinkTight: { alignSelf: 'center', marginTop: 12 },
+  backText: { fontSize: 14, color: '#6b7280', fontWeight: '600' },
   forgotLink: { alignSelf: 'flex-end', marginBottom: 24 },
   forgotText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
   loginButton: {

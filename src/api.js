@@ -62,7 +62,17 @@ export function getErrorMessage(error) {
 
 export async function login(email, password) {
   const response = await api.post('/api/auth/login', { email, password });
+  return response.data; // { token, parent } OR { twoFactorRequired: true, tempToken }
+}
+
+export async function verifyTwoFactor(tempToken, code) {
+  const response = await api.post('/api/auth/verify-2fa', { tempToken, code });
   return response.data; // { token, parent }
+}
+
+export async function resendTwoFactor(tempToken) {
+  const response = await api.post('/api/auth/resend-2fa', { tempToken });
+  return response.data;
 }
 
 export async function register(data) {

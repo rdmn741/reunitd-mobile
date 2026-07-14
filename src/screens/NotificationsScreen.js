@@ -9,6 +9,8 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme';
 import { getTags, getTagScans, getErrorMessage } from '../api';
 
 function timeAgo(dateStr) {
@@ -137,7 +139,7 @@ export default function NotificationsScreen() {
           renderItem={({ item }) => <ScanNotificationRow item={item} />}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>🔔</Text>
+              <Ionicons name="notifications-off-outline" size={44} color={colors.faint} />
               <Text style={styles.emptyTitle}>No Scan Activity</Text>
               <Text style={styles.emptyBody}>
                 When someone scans one of your tags, it will appear here in real time.

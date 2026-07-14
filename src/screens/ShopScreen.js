@@ -10,6 +10,8 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme';
 
 const PRODUCTS = [
   {
@@ -95,7 +97,7 @@ function ProductCard({ product }) {
       <View style={styles.featureList}>
         {product.features.map((f) => (
           <View key={f} style={styles.featureRow}>
-            <Text style={styles.featureCheck}>✓</Text>
+            <Ionicons name="checkmark-circle" size={15} color={colors.success} style={{ marginTop: 1 }} />
             <Text style={styles.featureText}>{f}</Text>
           </View>
         ))}
@@ -130,7 +132,7 @@ export default function ShopScreen() {
         <View style={styles.trustStrip}>
           {['Machine washable', 'No app to scan', 'Lifetime plan'].map((t) => (
             <View key={t} style={styles.trustItem}>
-              <Text style={styles.trustDot}>✓</Text>
+              <Ionicons name="checkmark" size={13} color={colors.success} />
               <Text style={styles.trustText}>{t}</Text>
             </View>
           ))}
@@ -146,7 +148,10 @@ export default function ShopScreen() {
           style={styles.faqLink}
           onPress={() => Linking.openURL('https://reunitd.com/faq')}
         >
-          <Text style={styles.faqLinkText}>Have questions? Visit our FAQ →</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <Text style={styles.faqLinkText}>Have questions? Visit our FAQ</Text>
+            <Ionicons name="arrow-forward" size={14} color={colors.primary} />
+          </View>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

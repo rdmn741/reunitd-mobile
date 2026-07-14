@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { getErrorMessage } from '../api';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme';
 
 /**
  * Post-login/signup nudge to turn on two-factor authentication.
@@ -24,7 +26,9 @@ export default function EnableTwoFactorPrompt({ visible, onEnable, onDismiss }) 
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
       <View style={styles.overlay}>
         <View style={styles.card}>
-          <Text style={styles.icon}>🔒</Text>
+          <View style={styles.iconCircle}>
+            <Ionicons name="shield-checkmark" size={30} color={colors.primary} />
+          </View>
           <Text style={styles.title}>Protect your account</Text>
           <Text style={styles.body}>
             Turn on two-factor authentication. We'll email a 6-digit code each time you sign in — so your
@@ -60,7 +64,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   card: { backgroundColor: '#fff', borderRadius: 20, padding: 24, alignItems: 'center' },
-  icon: { fontSize: 40, marginBottom: 8 },
+  iconCircle: {
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: colors.primaryFaint,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 12,
+  },
   title: { fontSize: 20, fontWeight: '800', color: '#111827', marginBottom: 8 },
   body: { fontSize: 14, color: '#6b7280', lineHeight: 20, textAlign: 'center', marginBottom: 22 },
   enableBtn: {

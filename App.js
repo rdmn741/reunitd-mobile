@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -25,6 +25,9 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import ShopScreen from './src/screens/ShopScreen';
 import QuickActionSheet from './src/components/QuickActionSheet';
 import EnableTwoFactorPrompt from './src/components/EnableTwoFactorPrompt';
+import Wordmark from './src/components/Wordmark';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from './src/theme';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -77,16 +80,14 @@ function DashboardStack() {
 }
 
 // ─── Tab icon renderer ───────────────────────────────────────────────────────
-function TabIcon({ name, focused }) {
+function TabIcon({ name, focused, color }) {
   const icons = {
-    Dashboard: '🏠',
-    Shop: '🛍️',
-    Notifications: '🔔',
-    Profile: '👤',
+    Dashboard:     focused ? 'home'          : 'home-outline',
+    Shop:          focused ? 'pricetags'     : 'pricetags-outline',
+    Notifications: focused ? 'notifications' : 'notifications-outline',
+    Profile:       focused ? 'person'        : 'person-outline',
   };
-  return (
-    <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.45 }}>{icons[name] || '●'}</Text>
-  );
+  return <Ionicons name={icons[name] || 'ellipse-outline'} size={22} color={color} />;
 }
 
 // ─── Authenticated Tabs ──────────────────────────────────────────────────────
@@ -95,13 +96,14 @@ function AppTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
-        tabBarActiveTintColor: '#2563eb',
-        tabBarInactiveTintColor: '#9ca3af',
+        tabBarIcon: ({ focused, color }) => <TabIcon name={route.name} focused={focused} color={color} />,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.faint,
         tabBarStyle: {
-          backgroundColor: '#fff',
-          borderTopColor: '#f0f0f0',
-          paddingTop: 4,
+          backgroundColor: colors.card,
+          borderTopColor: colors.border,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          paddingTop: 6,
         },
         tabBarLabelStyle: {
           fontSize: 11,
@@ -168,10 +170,8 @@ function RootNavigator() {
   if (loading) {
     return (
       <View style={styles.splashContainer}>
-        <Text style={styles.splashTitle}>
-          reun<Text style={styles.splashAccent}>It</Text>D
-        </Text>
-        <ActivityIndicator color="#2563eb" style={{ marginTop: 24 }} />
+        <Wordmark size={38} />
+        <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
       </View>
     );
   }
@@ -220,17 +220,8 @@ export default function App() {
 const styles = StyleSheet.create({
   splashContainer: {
     flex: 1,
-    backgroundColor: '#eff6ff',
+    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  splashTitle: {
-    fontSize: 42,
-    fontWeight: '900',
-    color: '#1e3a8a',
-    letterSpacing: 0.5,
-  },
-  splashAccent: {
-    color: '#2563eb',
   },
 });

@@ -12,6 +12,8 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme';
 import { forgotPassword, getErrorMessage } from '../api';
 
 export default function ForgotPasswordScreen({ navigation }) {
@@ -47,12 +49,13 @@ export default function ForgotPasswordScreen({ navigation }) {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backText}>← Back to Login</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backButton, { flexDirection: 'row', alignItems: 'center', gap: 2 }]}>
+            <Ionicons name="chevron-back" size={16} color={colors.muted} />
+            <Text style={styles.backText}>Back to Login</Text>
           </TouchableOpacity>
 
           <View style={styles.iconArea}>
-            <Text style={styles.icon}>🔑</Text>
+            <Ionicons name="key-outline" size={52} color={colors.primary} />
           </View>
 
           <Text style={styles.heading}>Reset Password</Text>
@@ -62,7 +65,7 @@ export default function ForgotPasswordScreen({ navigation }) {
 
           {sent ? (
             <View style={styles.successCard}>
-              <Text style={styles.successIcon}>✅</Text>
+              <Ionicons name="checkmark-circle" size={48} color={colors.success} style={{ marginBottom: 16 }} />
               <Text style={styles.successTitle}>Email Sent!</Text>
               <Text style={styles.successBody}>
                 Check your inbox for a password reset link. It may take a minute to arrive.

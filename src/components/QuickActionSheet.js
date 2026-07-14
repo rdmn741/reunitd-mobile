@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { getTags, setLostMode, updateTagSettings, getErrorMessage } from '../api';
 import DisclaimerModal from './DisclaimerModal';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme';
 
 // The info fields a guardian can reveal to finders. Sensitive ones get a
 // confirmation before they're exposed on the public scan page.
@@ -101,7 +103,10 @@ export default function QuickActionSheet({ visible, tagId, scanInfo, onClose, on
         <TouchableOpacity style={styles.backdropTouch} activeOpacity={1} onPress={onClose} />
         <View style={styles.sheet}>
           <View style={styles.handle} />
-          <Text style={styles.title}>🔔 Someone found your tag</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <Ionicons name="notifications" size={20} color={colors.primary} />
+            <Text style={styles.title}>Someone found your tag</Text>
+          </View>
           <Text style={styles.subtitle}>
             {tag?.label ? tag.label : tagId || ''}
             {loc ? ` · scanned in ${loc}` : ''}
@@ -122,9 +127,12 @@ export default function QuickActionSheet({ visible, tagId, scanInfo, onClose, on
                 {lostBusy ? (
                   <ActivityIndicator color={tag.lostMode ? '#b91c1c' : '#fff'} />
                 ) : (
-                  <Text style={[styles.lostBtnText, tag.lostMode && styles.lostOnText]}>
-                    {tag.lostMode ? '🚨 Lost Mode is ON — tap to turn off' : '🚨 Activate Lost Mode'}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons name="alert-circle" size={18} color={tag.lostMode ? '#b91c1c' : '#fff'} />
+                    <Text style={[styles.lostBtnText, tag.lostMode && styles.lostOnText]}>
+                      {tag.lostMode ? 'Lost Mode is ON — tap to turn off' : 'Activate Lost Mode'}
+                    </Text>
+                  </View>
                 )}
               </TouchableOpacity>
 
@@ -153,7 +161,10 @@ export default function QuickActionSheet({ visible, tagId, scanInfo, onClose, on
                     onOpenDetails(t);
                   }}
                 >
-                  <Text style={styles.detailsText}>View full tag details →</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={styles.detailsText}>View full tag details</Text>
+                    <Ionicons name="arrow-forward" size={14} color={colors.primary} />
+                  </View>
                 </TouchableOpacity>
               )}
             </ScrollView>

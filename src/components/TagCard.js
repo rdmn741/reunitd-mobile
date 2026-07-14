@@ -11,6 +11,8 @@ import {
   Platform,
 } from 'react-native';
 import { updateTag, setLostMode, getErrorMessage } from '../api';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme';
 import { useAuth } from '../AuthContext';
 
 export default function TagCard({ tag: initialTag, onUpdate, onPress }) {
@@ -168,7 +170,7 @@ export default function TagCard({ tag: initialTag, onUpdate, onPress }) {
           ) : null}
           {childName ? (
             <View style={styles.childBadge}>
-              <Text style={styles.childBadgeText}>🧒  {childName.toUpperCase()}</Text>
+              <Text style={styles.childBadgeText}>{childName.toUpperCase()}</Text>
             </View>
           ) : null}
         </View>
@@ -177,7 +179,12 @@ export default function TagCard({ tag: initialTag, onUpdate, onPress }) {
       {/* ── Privacy / Sharing toggle ── */}
       <View style={[styles.privacyRow, sharingOn && styles.privacyRowOn]}>
         <View style={styles.privacyLeft}>
-          <Text style={styles.privacyIcon}>{sharingOn ? '👁' : '🔒'}</Text>
+          <Ionicons
+            name={sharingOn ? 'eye-outline' : 'lock-closed'}
+            size={18}
+            color={sharingOn ? colors.warning : colors.success}
+            style={{ marginRight: 8, marginTop: 2 }}
+          />
           <View>
             <Text style={styles.privacyLabel}>
               {sharingOn ? 'Privacy Mode — OFF (Info Visible)' : 'Privacy Mode — ON'}

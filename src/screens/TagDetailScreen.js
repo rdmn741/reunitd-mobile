@@ -17,6 +17,8 @@ import { usePreventScreenCapture } from 'expo-screen-capture';
 import { setLostMode, updateTag, updateTagSettings, deleteTag, updateMe, getErrorMessage } from '../api';
 import { useAuth } from '../AuthContext';
 import DisclaimerModal from '../components/DisclaimerModal';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme';
 
 const SENSITIVE_FIELDS = ['phones', 'address', 'emergencyNote'];
 
@@ -57,7 +59,10 @@ function FinderPreview({ tag, parent }) {
 
         {vf.phones && parent?.primaryPhone ? (
           <View style={styles.previewCallBtn}>
-            <Text style={styles.previewCallText}>📞  Call Family — {parent.primaryPhone}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Ionicons name="call" size={16} color="#fff" />
+              <Text style={styles.previewCallText}>Call Family — {parent.primaryPhone}</Text>
+            </View>
           </View>
         ) : null}
 
@@ -67,7 +72,10 @@ function FinderPreview({ tag, parent }) {
 
         {vf.emergencyNote && parent?.emergencyNote ? (
           <View style={styles.previewMedical}>
-            <Text style={styles.previewMedicalLabel}>⚠️  MEDICAL</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="medkit" size={14} color={colors.warning} />
+              <Text style={styles.previewMedicalLabel}>MEDICAL</Text>
+            </View>
             <Text style={styles.previewMedicalText}>{parent.emergencyNote}</Text>
           </View>
         ) : null}
@@ -210,7 +218,7 @@ export default function TagDetailScreen({ route, navigation }) {
   async function handleLostModeToggle() {
     const newVal = !tag.lostMode;
     Alert.alert(
-      newVal ? '🚨 Activate Lost Mode' : '✅ Deactivate Lost Mode',
+      newVal ? 'Activate Lost Mode' : 'Deactivate Lost Mode',
       newVal
         ? 'This will display a LOST badge when your tag is scanned.'
         : 'Mark your child as found. This will remove the LOST badge.',
@@ -340,7 +348,10 @@ export default function TagDetailScreen({ route, navigation }) {
             </View>
             {isLost && (
               <View style={styles.lostBadge}>
-                <Text style={styles.lostBadgeText}>🚨 LOST</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="alert-circle" size={13} color="#fff" />
+                  <Text style={styles.lostBadgeText}>LOST</Text>
+                </View>
               </View>
             )}
           </View>
@@ -354,9 +365,12 @@ export default function TagDetailScreen({ route, navigation }) {
         >
           {lostLoading
             ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.lostButtonText}>
-                {isLost ? '✅  Child Found — Deactivate Lost Mode' : '🚨  My Child Is Lost — Activate Now'}
-              </Text>
+            : <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <Ionicons name={isLost ? 'checkmark-circle' : 'alert-circle'} size={19} color="#fff" />
+                <Text style={styles.lostButtonText}>
+                  {isLost ? 'Child Found — Deactivate Lost Mode' : 'My Child Is Lost — Activate Now'}
+                </Text>
+              </View>
           }
         </TouchableOpacity>
 
@@ -419,7 +433,10 @@ export default function TagDetailScreen({ route, navigation }) {
           style={styles.scanHistoryButton}
           onPress={() => navigation.navigate('ScanHistory', { tagId: tag.tagId })}
         >
-          <Text style={styles.scanHistoryText}>📊  View Scan History</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <Ionicons name="time-outline" size={17} color={colors.primary} />
+            <Text style={styles.scanHistoryText}>View Scan History</Text>
+          </View>
         </TouchableOpacity>
 
         {/* ── Tag Status ── */}
@@ -446,7 +463,10 @@ export default function TagDetailScreen({ route, navigation }) {
         <View style={[styles.section, styles.dangerSection]}>
           <Text style={[styles.sectionTitle, { color: '#dc2626' }]}>Danger Zone</Text>
           <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteTag}>
-            <Text style={styles.deleteButtonText}>🗑️  Remove Tag from Account</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Ionicons name="trash-outline" size={16} color={colors.danger} />
+              <Text style={styles.deleteButtonText}>Remove Tag from Account</Text>
+            </View>
           </TouchableOpacity>
         </View>
 

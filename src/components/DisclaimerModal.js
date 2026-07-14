@@ -8,6 +8,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 const DISCLAIMER_TEXT = `IMPORTANT PRIVACY DISCLAIMER — PLEASE READ CAREFULLY
 
@@ -86,7 +87,7 @@ export default function DisclaimerModal({ visible, fieldName, onAgree, onCancel 
               activeOpacity={0.7}
             >
               <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-                {checked && <Text style={styles.checkmark}>✓</Text>}
+                {checked && <Ionicons name="checkmark" size={15} color="#fff" />}
               </View>
               <Text style={styles.checkboxLabel}>
                 I have read and understood the disclaimer

@@ -14,6 +14,8 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
 import { getTags, activateTag, getErrorMessage } from '../api';
@@ -364,7 +366,7 @@ export default function DashboardScreen({ navigation }) {
           )}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>🏷️</Text>
+              <Ionicons name="pricetag-outline" size={44} color={colors.faint} />
               <Text style={styles.emptyTitle}>No Tags Yet</Text>
               <Text style={styles.emptyBody}>
                 Activate your first reunItD tag to start protecting your loved one.

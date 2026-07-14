@@ -15,6 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { register } from '../api';
 import { useAuth } from '../AuthContext';
 import { getErrorMessage } from '../api';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme';
 
 export default function RegisterScreen({ navigation }) {
   const { login } = useAuth();
@@ -82,8 +84,9 @@ export default function RegisterScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Text style={styles.backText}>← Back</Text>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backButton, { flexDirection: 'row', alignItems: 'center', gap: 2 }]}>
+              <Ionicons name="chevron-back" size={16} color={colors.muted} />
+              <Text style={styles.backText}>Back</Text>
             </TouchableOpacity>
             <Text style={styles.heading}>Create Account</Text>
             <Text style={styles.subheading}>Set up your reunItD parent account</Text>
@@ -130,7 +133,7 @@ export default function RegisterScreen({ navigation }) {
                 onPress={() => setShowPassword((v) => !v)}
                 style={styles.eyeButton}
               >
-                <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
+                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.muted} />
               </TouchableOpacity>
             </View>
 

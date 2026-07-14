@@ -13,6 +13,8 @@ import {
   Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme';
 import { useAuth } from '../AuthContext';
 import { updateMe, getErrorMessage } from '../api';
 import {
@@ -275,9 +277,14 @@ export default function ProfileScreen() {
             <View style={styles.infoCard}>
               <View style={styles.biometricRow}>
                 <View style={styles.biometricText}>
-                  <Text style={styles.biometricTitle}>
-                    {biometricLabel === 'Face ID' ? '🔒 Face ID' : '🔒 Fingerprint'}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons
+                      name={biometricLabel === 'Face ID' ? 'scan-outline' : 'finger-print-outline'}
+                      size={16}
+                      color={colors.ink}
+                    />
+                    <Text style={styles.biometricTitle}>{biometricLabel}</Text>
+                  </View>
                   <Text style={styles.biometricSub}>
                     Require {biometricLabel} to open the app
                   </Text>

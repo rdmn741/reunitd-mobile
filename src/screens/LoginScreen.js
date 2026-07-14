@@ -16,6 +16,9 @@ import { useAuth } from '../AuthContext';
 import { getErrorMessage, resendTwoFactor } from '../api';
 import { isBiometricAvailable, isBiometricEnabled, getBiometricLabel } from '../biometrics';
 import * as SecureStore from 'expo-secure-store';
+import { Ionicons } from '@expo/vector-icons';
+import Wordmark from '../components/Wordmark';
+import { colors, radii, shadow } from '../theme';
 
 const REMEMBERED_TOKEN_KEY = 'reunitd_remembered_token';
 
@@ -128,9 +131,7 @@ export default function LoginScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.logoArea}>
-            <Text style={styles.appName}>
-              reun<Text style={styles.appNameAccent}>It</Text>D
-            </Text>
+            <Wordmark size={36} />
             <Text style={styles.tagline}>If someone you love gets lost,{'\n'}one tap reaches you</Text>
           </View>
 
@@ -168,8 +169,9 @@ export default function LoginScreen({ navigation }) {
               <TouchableOpacity style={styles.centerLink} onPress={handleResend} disabled={resending}>
                 <Text style={styles.forgotText}>{resending ? 'Sending…' : 'Resend code'}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.centerLinkTight} onPress={cancelTwoFactor}>
-                <Text style={styles.backText}>← Back to login</Text>
+              <TouchableOpacity style={[styles.centerLinkTight, styles.backRow]} onPress={cancelTwoFactor}>
+                <Ionicons name="chevron-back" size={15} color={colors.muted} />
+                <Text style={styles.backText}>Back to login</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -205,8 +207,9 @@ export default function LoginScreen({ navigation }) {
               <TouchableOpacity
                 onPress={() => setShowPassword((v) => !v)}
                 style={styles.eyeButton}
+                accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
               >
-                <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
+                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.muted} />
               </TouchableOpacity>
             </View>
 
@@ -239,9 +242,11 @@ export default function LoginScreen({ navigation }) {
                   <ActivityIndicator color="#2563eb" />
                 ) : (
                   <>
-                    <Text style={styles.biometricIcon}>
-                      {biometricLabel === 'Face ID' ? '🔒' : '👆'}
-                    </Text>
+                    <Ionicons
+                      name={biometricLabel === 'Face ID' ? 'scan-outline' : 'finger-print-outline'}
+                      size={19}
+                      color={colors.primary}
+                    />
                     <Text style={styles.biometricButtonText}>
                       Sign in with {biometricLabel}
                     </Text>
@@ -267,40 +272,29 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#eff6ff' },
+  safe: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   scroll: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 },
   logoArea: {
     alignItems: 'center',
     paddingTop: 48,
     paddingBottom: 32,
-  },
-  appName: {
-    fontSize: 36,
-    fontWeight: '900',
-    color: '#1e3a8a',
-    letterSpacing: 0.5,
-    marginBottom: 10,
-  },
-  appNameAccent: {
-    color: '#2563eb',
+    gap: 10,
   },
   tagline: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.muted,
     marginTop: 0,
     textAlign: 'center',
     lineHeight: 20,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow,
   },
   heading: {
     fontSize: 22,
@@ -347,7 +341,7 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   eyeButton: { paddingHorizontal: 12 },
-  eyeText: { fontSize: 18 },
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   codeInput: {
     textAlign: 'center',
     fontSize: 26,

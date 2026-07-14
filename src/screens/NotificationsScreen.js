@@ -48,7 +48,7 @@ function ScanNotificationRow({ item }) {
   return (
     <View style={styles.row}>
       <View style={styles.iconContainer}>
-        <Text style={styles.rowIcon}>📡</Text>
+        <Ionicons name="radio-outline" size={20} color={colors.primary} style={{ marginRight: 2 }} />
       </View>
       <View style={styles.rowContent}>
         <View style={styles.rowTop}>

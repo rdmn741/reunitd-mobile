@@ -150,7 +150,7 @@ function ActivateModal({ visible, onClose, onSuccess }) {
             {/* Top bar */}
             <View style={styles.scannerTopBar}>
               <TouchableOpacity onPress={() => setShowScanner(false)} style={styles.scannerCloseBtn}>
-                <Text style={styles.scannerCloseText}>✕</Text>
+                <Ionicons name="close" size={22} color="#fff" />
               </TouchableOpacity>
               <Text style={styles.scannerTitle}>Read Activation Code</Text>
               <View style={{ width: 40 }} />
@@ -185,7 +185,10 @@ function ActivateModal({ visible, onClose, onSuccess }) {
               >
                 {processing
                   ? <ActivityIndicator color="#fff" size="small" />
-                  : <Text style={styles.captureBtnText}>📸  Capture</Text>
+                  : <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons name="camera" size={18} color="#fff" />
+                    <Text style={styles.captureBtnText}>Capture</Text>
+                  </View>
                 }
               </TouchableOpacity>
             </View>
@@ -208,7 +211,7 @@ function ActivateModal({ visible, onClose, onSuccess }) {
 
             {/* Scan button */}
             <TouchableOpacity style={styles.scanQrButton} onPress={openScanner} activeOpacity={0.85}>
-              <Text style={styles.scanQrIcon}>📷</Text>
+              <Ionicons name="camera-outline" size={22} color={colors.primary} />
               <View>
                 <Text style={styles.scanQrLabel}>Scan Activation Code</Text>
                 <Text style={styles.scanQrSub}>Camera reads the code from your card</Text>
@@ -325,7 +328,7 @@ export default function DashboardScreen({ navigation }) {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.headerBar}>
         <View>
-          <Text style={styles.greeting}>Hello, {firstName} 👋</Text>
+          <Text style={styles.greeting}>Hello, {firstName}</Text>
           <Text style={styles.headerSub}>Your reunItD Dashboard</Text>
         </View>
         <TouchableOpacity

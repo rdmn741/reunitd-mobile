@@ -105,7 +105,10 @@ export default function TagCard({ tag: initialTag, onUpdate, onPress }) {
       {/* ── Action buttons ── */}
       <View style={styles.actionsRow}>
         <TouchableOpacity style={styles.actionBtn} onPress={onPress} activeOpacity={0.75}>
-          <Text style={styles.actionBtnText}>👶  Child</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="happy-outline" size={15} color={colors.text} />
+            <Text style={styles.actionBtnText}>Child</Text>
+          </View>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -113,11 +116,14 @@ export default function TagCard({ tag: initialTag, onUpdate, onPress }) {
           onPress={() => { setLabelDraft(tag.label || ''); setLabelEditing(true); }}
           activeOpacity={0.75}
         >
-          <Text style={styles.actionBtnText}>✏️  Label</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="pencil-outline" size={14} color={colors.text} />
+            <Text style={styles.actionBtnText}>Label</Text>
+          </View>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionIconBtn} onPress={onPress} activeOpacity={0.75}>
-          <Text style={styles.actionIconText}>⚙️</Text>
+          <Ionicons name="settings-outline" size={17} color={colors.muted} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -166,7 +172,10 @@ export default function TagCard({ tag: initialTag, onUpdate, onPress }) {
       {!labelEditing && (tag.label || childName) ? (
         <View style={styles.metaRow}>
           {tag.label ? (
-            <Text style={styles.metaLabel}>📌  {tag.label}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <Ionicons name="bookmark-outline" size={13} color={colors.muted} />
+              <Text style={styles.metaLabel}>{tag.label}</Text>
+            </View>
           ) : null}
           {childName ? (
             <View style={styles.childBadge}>
@@ -185,7 +194,7 @@ export default function TagCard({ tag: initialTag, onUpdate, onPress }) {
             color={sharingOn ? colors.warning : colors.success}
             style={{ marginRight: 8, marginTop: 2 }}
           />
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.privacyLabel}>
               {sharingOn ? 'Privacy Mode — OFF (Info Visible)' : 'Privacy Mode — ON'}
             </Text>

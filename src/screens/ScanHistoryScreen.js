@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme';
 import {
   View,
   Text,
@@ -130,7 +132,7 @@ export default function ScanHistoryScreen({ route }) {
           renderItem={({ item, index }) => <ScanRow log={item} index={index} />}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>📡</Text>
+              <Ionicons name="radio-outline" size={44} color={colors.faint} />
               <Text style={styles.emptyTitle}>No Scans Yet</Text>
               <Text style={styles.emptyBody}>
                 When someone scans this tag, the event will appear here.

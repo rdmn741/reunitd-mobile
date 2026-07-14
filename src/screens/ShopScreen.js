@@ -50,7 +50,7 @@ const PRODUCTS = [
   {
     id: 'bundle',
     name: 'Bundle',
-    badge: '💰 Best Value',
+    badge: 'Best Value',
     badgeBg: '#16a34a',
     price: 69,
     patchCount: 5,

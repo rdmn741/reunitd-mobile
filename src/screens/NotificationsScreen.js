@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,11 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
-import { getTags, getTagScans, getErrorMessage } from '../api';
+import { getNotifications, markAllNotificationsRead, getErrorMessage } from '../api';
+import { useNotifications } from '../NotificationsContext';
 
 function timeAgo(dateStr) {
   const now = new Date();
@@ -39,59 +41,41 @@ function formatDateTime(dateStr) {
   });
 }
 
-function ScanNotificationRow({ item }) {
-  const location =
-    item.city && item.country
-      ? `${item.city}, ${item.country}`
-      : item.country || item.city || 'Unknown location';
-
+function NotificationRow({ item }) {
+  const isFound = item.type === 'found_alert';
   return (
-    <View style={styles.row}>
-      <View style={styles.iconContainer}>
-        <Ionicons name="radio-outline" size={20} color={colors.primary} style={{ marginRight: 2 }} />
+    <View style={[styles.row, !item.read && styles.rowUnread]}>
+      <View style={[styles.iconContainer, isFound && styles.iconContainerAlert]}>
+        <Ionicons
+          name={isFound ? 'alert-circle' : 'radio-outline'}
+          size={20}
+          color={isFound ? colors.danger : colors.primary}
+        />
       </View>
       <View style={styles.rowContent}>
         <View style={styles.rowTop}>
-          <Text style={styles.tagId}>{item.tagId}</Text>
-          <Text style={styles.timeAgo}>{timeAgo(item.scannedAt)}</Text>
+          {item.tagId ? <Text style={styles.tagId}>{item.tagId}</Text> : <View />}
+          <Text style={styles.timeAgo}>{timeAgo(item.createdAt)}</Text>
         </View>
-        <Text style={styles.location}>{location}</Text>
-        <Text style={styles.ip}>{item.ip || 'IP not recorded'}</Text>
-        <Text style={styles.datetime}>{formatDateTime(item.scannedAt)}</Text>
+        <Text style={styles.title}>{item.title}</Text>
+        <Text style={styles.body}>{item.body}</Text>
+        <Text style={styles.datetime}>{formatDateTime(item.createdAt)}</Text>
       </View>
+      {!item.read && <View style={styles.unreadDot} />}
     </View>
   );
 }
 
 export default function NotificationsScreen() {
-  const [scans, setScans] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const { refreshUnreadCount } = useNotifications();
 
-  const fetchAllScans = useCallback(async () => {
+  const load = useCallback(async () => {
     try {
-      const tagsData = await getTags();
-      const tags = tagsData.tags || [];
-
-      // Fetch scans for all tags in parallel
-      const scanResults = await Promise.allSettled(
-        tags.map((tag) => getTagScans(tag.tagId))
-      );
-
-      const allScans = [];
-      scanResults.forEach((result, idx) => {
-        if (result.status === 'fulfilled') {
-          const tagId = tags[idx].tagId;
-          const logs = result.value.logs || [];
-          logs.forEach((log) => {
-            allScans.push({ ...log, tagId });
-          });
-        }
-      });
-
-      // Sort newest first
-      allScans.sort((a, b) => new Date(b.scannedAt) - new Date(a.scannedAt));
-      setScans(allScans);
+      const data = await getNotifications();
+      setNotifications(data.notifications || []);
     } catch (err) {
       Alert.alert('Error', getErrorMessage(err));
     } finally {
@@ -100,49 +84,57 @@ export default function NotificationsScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchAllScans();
-  }, [fetchAllScans]);
+  // Snapshot the unread state on load (so this viewing still shows what was
+  // new), then mark everything read server-side and clear the tab badge.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        await load();
+        if (cancelled) return;
+        try {
+          await markAllNotificationsRead();
+          refreshUnreadCount();
+        } catch (_) {
+          // Non-fatal — the list itself loaded fine, badge will just retry next visit.
+        }
+      })();
+      return () => { cancelled = true; };
+    }, [load, refreshUnreadCount])
+  );
 
   function onRefresh() {
     setRefreshing(true);
-    fetchAllScans();
+    load();
   }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.headerBar}>
-        <Text style={styles.headerTitle}>Scan Activity</Text>
-        <Text style={styles.headerSub}>All tags, newest first</Text>
+        <Text style={styles.headerTitle}>Notifications</Text>
+        <Text style={styles.headerSub}>Scans and found alerts, newest first</Text>
       </View>
 
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#2563eb" />
-          <Text style={styles.loadingText}>Loading scan activity…</Text>
+          <Text style={styles.loadingText}>Loading notifications…</Text>
         </View>
       ) : (
         <FlatList
-          data={scans}
-          keyExtractor={(item, index) => `${item.tagId}-${item.scannedAt}-${index}`}
+          data={notifications}
+          keyExtractor={(item) => item._id}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563eb" />
           }
-          ListHeaderComponent={
-            scans.length > 0 ? (
-              <View style={styles.countBanner}>
-                <Text style={styles.countText}>{scans.length} scan event{scans.length !== 1 ? 's' : ''} recorded</Text>
-              </View>
-            ) : null
-          }
-          renderItem={({ item }) => <ScanNotificationRow item={item} />}
+          renderItem={({ item }) => <NotificationRow item={item} />}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Ionicons name="notifications-off-outline" size={44} color={colors.faint} />
-              <Text style={styles.emptyTitle}>No Scan Activity</Text>
+              <Text style={styles.emptyTitle}>No Notifications</Text>
               <Text style={styles.emptyBody}>
-                When someone scans one of your tags, it will appear here in real time.
+                When someone scans one of your tags, it will appear here.
               </Text>
               <Text style={styles.emptyTip}>
                 Pull down to refresh
@@ -169,16 +161,9 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   loadingText: { color: '#6b7280', fontSize: 14 },
   listContent: { padding: 16, paddingBottom: 40 },
-  countBanner: {
-    backgroundColor: '#dbeafe',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    marginBottom: 12,
-  },
-  countText: { fontSize: 13, fontWeight: '600', color: '#1e40af' },
   row: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     backgroundColor: '#fff',
     borderRadius: 14,
     marginBottom: 10,
@@ -189,6 +174,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  rowUnread: { backgroundColor: '#eff6ff', borderWidth: 1, borderColor: '#bfdbfe' },
   iconContainer: {
     width: 44,
     height: 44,
@@ -199,7 +185,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
     flexShrink: 0,
   },
-  rowIcon: { fontSize: 22 },
+  iconContainerAlert: { backgroundColor: '#fee2e2' },
   rowContent: { flex: 1 },
   rowTop: {
     flexDirection: 'row',
@@ -218,11 +204,14 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   timeAgo: { fontSize: 12, color: '#9ca3af', fontWeight: '500' },
-  location: { fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 3 },
-  ip: { fontSize: 12, color: '#6b7280', fontFamily: 'monospace', marginBottom: 2 },
+  title: { fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 3 },
+  body: { fontSize: 13, color: '#374151', lineHeight: 18, marginBottom: 4 },
   datetime: { fontSize: 11, color: '#9ca3af' },
+  unreadDot: {
+    width: 9, height: 9, borderRadius: 5, backgroundColor: colors.danger,
+    marginLeft: 8, marginTop: 6, flexShrink: 0,
+  },
   emptyState: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 40 },
-  emptyIcon: { fontSize: 56, marginBottom: 16 },
   emptyTitle: { fontSize: 20, fontWeight: '700', color: '#1e3a8a', marginBottom: 8 },
   emptyBody: {
     fontSize: 14,

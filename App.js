@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, AppState } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 
 import { AuthProvider, useAuth } from './src/AuthContext';
+import { NotificationsProvider, useNotifications } from './src/NotificationsContext';
 import {
   registerForPushNotifications,
   setupNotificationResponseListener,
@@ -80,23 +81,36 @@ function DashboardStack() {
 }
 
 // ─── Tab icon renderer ───────────────────────────────────────────────────────
-function TabIcon({ name, focused, color }) {
+function TabIcon({ name, focused, color, showDot }) {
   const icons = {
     Dashboard:     focused ? 'home'          : 'home-outline',
     Shop:          focused ? 'pricetags'     : 'pricetags-outline',
     Notifications: focused ? 'notifications' : 'notifications-outline',
     Profile:       focused ? 'person'        : 'person-outline',
   };
-  return <Ionicons name={icons[name] || 'ellipse-outline'} size={22} color={color} />;
+  return (
+    <View>
+      <Ionicons name={icons[name] || 'ellipse-outline'} size={22} color={color} />
+      {showDot && <View style={styles.tabDot} />}
+    </View>
+  );
 }
 
 // ─── Authenticated Tabs ──────────────────────────────────────────────────────
 function AppTabs() {
+  const { unreadCount } = useNotifications();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarIcon: ({ focused, color }) => <TabIcon name={route.name} focused={focused} color={color} />,
+        tabBarIcon: ({ focused, color }) => (
+          <TabIcon
+            name={route.name}
+            focused={focused}
+            color={color}
+            showDot={route.name === 'Notifications' && unreadCount > 0}
+          />
+        ),
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.faint,
         tabBarStyle: {
@@ -122,6 +136,7 @@ function AppTabs() {
 // ─── Root Navigator ───────────────────────────────────────────────────────────
 function RootNavigator() {
   const { parent, loading, mfaPromptVisible, enableMfaFromPrompt, dismissMfaPrompt } = useAuth();
+  const { refreshUnreadCount } = useNotifications();
   const navigationRef = useRef(null);
   // Quick-action sheet shown when a finder's scan alert arrives
   const [quickTagId, setQuickTagId] = useState(null);
@@ -143,6 +158,18 @@ function RootNavigator() {
     }
   }, [parent]);
 
+  // Badge count: refresh on login, whenever the app returns to the
+  // foreground (catches notifications delivered while fully backgrounded),
+  // and immediately whenever one arrives while open.
+  useEffect(() => {
+    if (!parent) return;
+    refreshUnreadCount();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refreshUnreadCount();
+    });
+    return () => sub.remove();
+  }, [parent, refreshUnreadCount]);
+
   // Handle notification tap → navigate to Notifications tab
   useEffect(() => {
     if (!parent) return;
@@ -150,6 +177,7 @@ function RootNavigator() {
     // Tapping a scan alert opens the quick-action sheet for that tag;
     // any other notification falls back to the Notifications tab.
     const responseSub = setupNotificationResponseListener((data) => {
+      refreshUnreadCount();
       if (!openQuickActions(data) && navigationRef.current) {
         navigationRef.current.navigate('Notifications');
       }
@@ -157,6 +185,7 @@ function RootNavigator() {
 
     // A scan alert arriving while the app is open auto-opens the quick sheet.
     const foregroundSub = setupForegroundNotificationListener((notification) => {
+      refreshUnreadCount();
       const data = notification?.request?.content?.data;
       openQuickActions(data);
     });
@@ -165,7 +194,7 @@ function RootNavigator() {
       responseSub.remove();
       foregroundSub.remove();
     };
-  }, [parent, openQuickActions]);
+  }, [parent, openQuickActions, refreshUnreadCount]);
 
   if (loading) {
     return (
@@ -211,7 +240,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <RootNavigator />
+        <NotificationsProvider>
+          <RootNavigator />
+        </NotificationsProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );
@@ -223,5 +254,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  tabDot: {
+    position: 'absolute',
+    top: -2,
+    right: -5,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: colors.danger,
+    borderWidth: 1.5,
+    borderColor: colors.card,
   },
 });

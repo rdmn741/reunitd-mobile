@@ -95,6 +95,21 @@ export async function updateMe(data) {
   return response.data;
 }
 
+export async function addChild(data) {
+  const response = await api.post('/api/auth/children', data);
+  return response.data; // { children: [...] }
+}
+
+export async function updateChild(childId, data) {
+  const response = await api.put(`/api/auth/children/${childId}`, data);
+  return response.data; // { children: [...] }
+}
+
+export async function deleteChild(childId) {
+  const response = await api.delete(`/api/auth/children/${childId}`);
+  return response.data; // { children: [...] }
+}
+
 export async function forgotPassword(email) {
   const response = await api.post('/api/auth/forgot-password', { email });
   return response.data;
@@ -139,8 +154,11 @@ export async function setLostMode(tagId, lostMode) {
   return response.data;
 }
 
-export async function updateTagSettings(tagId, visibleFields) {
-  const response = await api.put(`/api/tags/${tagId}/settings`, { visibleFields });
+export async function updateTagSettings(tagId, visibleFields, emergencyNote) {
+  const payload = {};
+  if (visibleFields !== undefined) payload.visibleFields = visibleFields;
+  if (emergencyNote !== undefined) payload.emergencyNote = emergencyNote;
+  const response = await api.put(`/api/tags/${tagId}/settings`, payload);
   return response.data;
 }
 
@@ -149,8 +167,30 @@ export async function getTagScans(tagId) {
   return response.data; // { tagId, scanCount, logs: [...] }
 }
 
-export async function deleteTag(tagId) {
-  const response = await api.delete(`/api/tags/${tagId}`);
+export async function deleteTag(tagId, password) {
+  const response = await api.delete(`/api/tags/${tagId}`, { data: { password } });
+  return response.data;
+}
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+export async function getNotifications() {
+  const response = await api.get('/api/notifications');
+  return response.data; // { notifications: [...] }
+}
+
+export async function getUnreadNotificationCount() {
+  const response = await api.get('/api/notifications/unread-count');
+  return response.data; // { count }
+}
+
+export async function markNotificationRead(id) {
+  const response = await api.put(`/api/notifications/${id}/read`);
+  return response.data;
+}
+
+export async function markAllNotificationsRead() {
+  const response = await api.put('/api/notifications/read-all');
   return response.data;
 }
 

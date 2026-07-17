@@ -56,6 +56,7 @@ export default function DisclaimerModal({ visible, fieldName, onAgree, onCancel 
     address: 'Home Address',
     emergencyNote: 'Emergency Note',
     childName: "Child's Name",
+    photo: "Child's Photo",
   };
 
   const displayName = fieldLabels[fieldName] || fieldName;

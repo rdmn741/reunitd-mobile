@@ -19,6 +19,7 @@ import { colors } from '../theme';
 // confirmation before they're exposed on the public scan page.
 const FIELDS = [
   { key: 'childName',     label: "Child's Name",   sensitive: false },
+  { key: 'photo',         label: "Child's Photo",  sensitive: true },
   { key: 'phones',        label: 'Phone Numbers',  sensitive: true },
   { key: 'address',       label: 'Home Address',   sensitive: true },
   { key: 'emergencyNote', label: 'Emergency Note', sensitive: true },
@@ -56,7 +57,7 @@ export default function QuickActionSheet({ visible, tagId, scanInfo, onClose, on
   }, [visible, tagId, load]);
 
   const visibleFields =
-    (tag && tag.visibleFields) || { childName: false, phones: false, address: false, emergencyNote: false };
+    (tag && tag.visibleFields) || { childName: false, phones: false, address: false, emergencyNote: false, photo: false };
 
   async function toggleLost() {
     if (!tag) return;

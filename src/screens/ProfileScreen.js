@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Switch,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +24,9 @@ import {
   setBiometricEnabled,
   getBiometricLabel,
 } from '../biometrics';
+import ChildFormModal from '../components/ChildFormModal';
+
+const GENDER_ICON = { male: 'male', female: 'female', other: 'person' };
 
 function InfoRow({ label, value }) {
   return (
@@ -39,7 +43,6 @@ function EditProfileForm({ parent, onSave, onCancel }) {
     primaryPhone: parent.primaryPhone || '',
     secondaryPhone: parent.secondaryPhone || '',
     address: parent.address || '',
-    emergencyNote: parent.emergencyNote || '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -64,7 +67,6 @@ function EditProfileForm({ parent, onSave, onCancel }) {
         primaryPhone: form.primaryPhone.trim(),
         secondaryPhone: form.secondaryPhone.trim() || undefined,
         address: form.address.trim() || undefined,
-        emergencyNote: form.emergencyNote.trim() || undefined,
       };
       await updateMe(payload);
       onSave(payload);
@@ -117,17 +119,6 @@ function EditProfileForm({ parent, onSave, onCancel }) {
         placeholderTextColor="#9ca3af"
       />
 
-      <Text style={styles.label}>Emergency Note</Text>
-      <TextInput
-        style={[styles.input, styles.textArea]}
-        value={form.emergencyNote}
-        onChangeText={(v) => setField('emergencyNote', v)}
-        placeholder="e.g. Child has peanut allergy. Reward offered."
-        placeholderTextColor="#9ca3af"
-        multiline
-        numberOfLines={3}
-      />
-
       <View style={styles.editButtonRow}>
         <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
           <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -155,6 +146,18 @@ export default function ProfileScreen() {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricEnabled, setBiometricEnabledState] = useState(false);
   const [biometricLabel, setBiometricLabelState] = useState('Face ID');
+  const [childModalVisible, setChildModalVisible] = useState(false);
+  const [editingChild, setEditingChild] = useState(null);
+
+  function openChildModal(child) {
+    setEditingChild(child);
+    setChildModalVisible(true);
+  }
+
+  function handleChildSaved(children) {
+    updateParent({ children });
+    setChildModalVisible(false);
+  }
 
   useEffect(() => {
     async function checkBiometrics() {
@@ -252,23 +255,39 @@ export default function ProfileScreen() {
                 <InfoRow label="Primary Phone" value={parent.primaryPhone} />
                 <InfoRow label="Secondary Phone" value={parent.secondaryPhone} />
                 <InfoRow label="Home Address" value={parent.address} />
-                <InfoRow label="Emergency Note" value={parent.emergencyNote} />
               </View>
 
               {/* Children */}
-              {parent.children && parent.children.length > 0 && (
-                <View style={styles.infoCard}>
+              <View style={styles.infoCard}>
+                <View style={styles.infoCardHeader}>
                   <Text style={styles.infoCardTitle}>Children</Text>
-                  {parent.children.map((child) => (
-                    <View key={child._id} style={styles.childRow}>
-                      <Text style={styles.childName}>{child.name}</Text>
-                      {child.gender ? (
-                        <Text style={styles.childGender}>{child.gender}</Text>
-                      ) : null}
-                    </View>
-                  ))}
+                  <TouchableOpacity onPress={() => openChildModal(null)}>
+                    <Text style={styles.editLink}>+ Add Child</Text>
+                  </TouchableOpacity>
                 </View>
-              )}
+                {parent.children && parent.children.length > 0 ? (
+                  parent.children.map((child) => (
+                    <TouchableOpacity
+                      key={child._id}
+                      style={styles.childRow}
+                      onPress={() => openChildModal(child)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.childThumb}>
+                        {child.photo ? (
+                          <Image source={{ uri: child.photo }} style={styles.childThumbImg} />
+                        ) : (
+                          <Ionicons name={GENDER_ICON[child.gender] || 'person'} size={16} color="#93c5fd" />
+                        )}
+                      </View>
+                      <Text style={styles.childName}>{child.name}</Text>
+                      <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <Text style={styles.childEmpty}>No child profiles yet. Add one to assign it to your tags.</Text>
+                )}
+              </View>
             </>
           )}
 
@@ -320,6 +339,13 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <ChildFormModal
+        visible={childModalVisible}
+        child={editingChild}
+        onClose={() => setChildModalVisible(false)}
+        onSaved={handleChildSaved}
+      />
     </SafeAreaView>
   );
 }
@@ -391,18 +417,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
-    gap: 8,
+    gap: 10,
   },
-  childName: { fontSize: 14, fontWeight: '600', color: '#374151' },
-  childGender: {
-    fontSize: 11,
-    color: '#6b7280',
-    backgroundColor: '#f3f4f6',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    textTransform: 'capitalize',
+  childThumb: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: '#dbeafe', borderWidth: 1.5, borderColor: '#93c5fd',
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
+  childThumbImg: { width: '100%', height: '100%' },
+  childName: { fontSize: 14, fontWeight: '600', color: '#374151', flex: 1 },
+  childEmpty: { fontSize: 13, color: '#9ca3af', fontStyle: 'italic', paddingVertical: 6 },
 
   appInfoCard: {
     backgroundColor: '#eff6ff',

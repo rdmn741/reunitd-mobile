@@ -20,6 +20,7 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "reunItD uses location to provide scan geolocation data.",
         "NSCameraUsageDescription": "reunItD uses the camera to scan the QR code on your activation card.",
+        "NSPhotoLibraryUsageDescription": "reunItD uses your photo library to add a child's photo to their profile.",
         "UIBackgroundModes": [
           "remote-notification"
         ]
@@ -53,7 +54,13 @@
         }
       ],
       "expo-secure-store",
-      "expo-camera"
+      "expo-camera",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "reunItD uses your photo library to add a child's photo to their profile."
+        }
+      ]
     ],
     "extra": {
       "eas": {

@@ -1,5 +1,5 @@
 'use strict';
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,28 +11,50 @@ import {
   Alert,
   Switch,
   Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePreventScreenCapture } from 'expo-screen-capture';
 import { setLostMode, updateTag, updateTagSettings, deleteTag, updateMe, getErrorMessage } from '../api';
 import { useAuth } from '../AuthContext';
 import DisclaimerModal from '../components/DisclaimerModal';
+import PasswordConfirmModal from '../components/PasswordConfirmModal';
+import ChildFormModal from '../components/ChildFormModal';
+import AssignChildModal from '../components/AssignChildModal';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
 
-const SENSITIVE_FIELDS = ['phones', 'address', 'emergencyNote'];
+const SENSITIVE_FIELDS = ['phones', 'address', 'emergencyNote', 'photo'];
+const GENDER_ICON = { male: 'male', female: 'female', other: 'person' };
 
 const FIELD_CONFIG = [
   { key: 'childName',     label: "Child's Name",    desc: 'First name shown to finder',          parentKey: 'childName',     sensitive: false },
+  { key: 'photo',         label: "Child's Photo",   desc: 'Photo shown to finder',               parentKey: null,            sensitive: true  },
   { key: 'phones',        label: 'Phone Numbers',   desc: 'Primary and backup contact numbers',  parentKey: null,            sensitive: true  },
   { key: 'address',       label: 'Home Address',    desc: 'Home address for reunion',            parentKey: 'address',       sensitive: true  },
-  { key: 'emergencyNote', label: 'Emergency Note',  desc: 'Medical info or special instructions',parentKey: 'emergencyNote', sensitive: true  },
+  { key: 'emergencyNote', label: 'Emergency Note',  desc: 'Medical info or special instructions',parentKey: null,            sensitive: true  },
 ];
 
+// Resolves the identity/contact fields a finder would actually see for this
+// tag: the assigned child's profile takes precedence, falling back to the
+// guardian's legacy single-child fields. Mirrors web's previewTag resolution
+// (public/dashboard.html) exactly, including the quirk that emergencyNote's
+// no-child fallback is the tag's own note, not the guardian's.
+function resolveTagIdentity(tag, parent, child) {
+  return {
+    childName: child ? child.name : (parent?.childName || ''),
+    gender:    child ? child.gender : (parent?.childGender || ''),
+    photo:     child ? child.photo : (parent?.childPhoto || ''),
+    address:   child ? (child.address || parent?.address || '') : (parent?.address || ''),
+    note:      child ? (child.emergencyNote || '') : (tag.emergencyNote || ''),
+  };
+}
+
 // ── Finder Preview ────────────────────────────────────────────────────────────
-function FinderPreview({ tag, parent }) {
+function FinderPreview({ tag, parent, resolved }) {
   const vf = tag.visibleFields || {};
   const hasAny = vf.childName || vf.phones || vf.address || vf.emergencyNote;
+  const showPhoto = vf.photo && resolved.photo;
 
   return (
     <View style={styles.previewCard}>
@@ -50,10 +72,19 @@ function FinderPreview({ tag, parent }) {
           <Text style={styles.previewEmpty}>No fields are visible yet. Enable at least one below.</Text>
         )}
 
-        {vf.childName && parent?.childName ? (
-          <View style={styles.previewRow}>
-            <Text style={styles.previewRowLabel}>NAME</Text>
-            <Text style={styles.previewRowValue}>{parent.childName}</Text>
+        {vf.childName && resolved.childName ? (
+          <View style={[styles.previewRow, styles.previewNameRow]}>
+            <View style={styles.previewAvatar}>
+              {showPhoto ? (
+                <Image source={{ uri: resolved.photo }} style={styles.previewAvatarImg} />
+              ) : (
+                <Ionicons name={GENDER_ICON[resolved.gender] || 'person'} size={18} color="#93c5fd" />
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.previewRowLabel}>NAME</Text>
+              <Text style={styles.previewRowValue}>{resolved.childName}</Text>
+            </View>
           </View>
         ) : null}
 
@@ -70,20 +101,20 @@ function FinderPreview({ tag, parent }) {
           <Text style={styles.previewBackup}>Backup: {parent.secondaryPhone}</Text>
         ) : null}
 
-        {vf.emergencyNote && parent?.emergencyNote ? (
+        {vf.emergencyNote && resolved.note ? (
           <View style={styles.previewMedical}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="medkit" size={14} color={colors.warning} />
               <Text style={styles.previewMedicalLabel}>MEDICAL</Text>
             </View>
-            <Text style={styles.previewMedicalText}>{parent.emergencyNote}</Text>
+            <Text style={styles.previewMedicalText}>{resolved.note}</Text>
           </View>
         ) : null}
 
-        {vf.address && parent?.address ? (
+        {vf.address && resolved.address ? (
           <View style={styles.previewRow}>
             <Text style={styles.previewRowLabel}>ADDRESS</Text>
-            <Text style={styles.previewRowValue}>{parent.address}</Text>
+            <Text style={styles.previewRowValue}>{resolved.address}</Text>
           </View>
         ) : null}
       </View>
@@ -91,7 +122,7 @@ function FinderPreview({ tag, parent }) {
   );
 }
 
-// ── Inline field editor ───────────────────────────────────────────────────────
+// ── Inline field editor (guardian-level text fields only) ─────────────────────
 function EditableField({ label, value, placeholder, multiline, onSave }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value || '');
@@ -144,8 +175,60 @@ function EditableField({ label, value, placeholder, multiline, onSave }) {
   );
 }
 
+// ── Emergency note: always inline-editable here, independent of assignment ────
+// Always saves to the tag's own note (PUT .../settings), matching web's
+// saveEmergencyNote — even though the *displayed* value prefers the assigned
+// child's note when one exists (see resolveTagIdentity).
+function EmergencyNoteEditor({ tagId, note, onSaved }) {
+  const [draft, setDraft] = useState(note || '');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    setSaved(false);
+    try {
+      await updateTagSettings(tagId, undefined, draft.trim());
+      onSaved(draft.trim());
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      Alert.alert('Error', getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <View style={styles.ftValueSection}>
+      <TextInput
+        style={[styles.efInput, styles.efInputMulti]}
+        value={draft}
+        onChangeText={setDraft}
+        placeholder="e.g. Peanut allergy. EpiPen in left jacket pocket."
+        placeholderTextColor="#9ca3af"
+        multiline
+        numberOfLines={3}
+        maxLength={300}
+      />
+      <View style={styles.efBtnRow}>
+        <TouchableOpacity style={[styles.efSaveBtn, { flex: 0, paddingHorizontal: 18 }, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving}>
+          {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.efSaveText}>Save Note</Text>}
+        </TouchableOpacity>
+        {saved && <Text style={styles.noteSaved}>✓ Saved</Text>}
+      </View>
+    </View>
+  );
+}
+
 // ── Field toggle row (visibility + value + edit) ──────────────────────────────
-function FieldToggleRow({ fieldCfg, isOn, onToggle, parent, onSaveField }) {
+function FieldToggleRow({ fieldCfg, isOn, onToggle, parent, resolved, hasChild, onSaveField, onSaveNote, onRoute, tagId }) {
+  const routeButton = (
+    <TouchableOpacity onPress={onRoute} style={styles.routeBtn}>
+      <Text style={styles.routeBtnText}>Edit</Text>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.fieldBlock}>
       <View style={styles.ftTopRow}>
@@ -162,36 +245,69 @@ function FieldToggleRow({ fieldCfg, isOn, onToggle, parent, onSaveField }) {
         />
       </View>
 
-      {/* Phones: two separate editable fields */}
-      {fieldCfg.key === 'phones' ? (
-        <View style={styles.ftValueSection}>
-          <Text style={styles.ftValueLabel}>Primary phone</Text>
-          <EditableField
-            label="Primary phone"
-            value={parent?.primaryPhone}
-            placeholder="+1 555 012 3456"
-            onSave={(v) => onSaveField({ primaryPhone: v })}
-          />
-          <Text style={[styles.ftValueLabel, { marginTop: 10 }]}>Backup phone</Text>
-          <EditableField
-            label="Backup phone"
-            value={parent?.secondaryPhone}
-            placeholder="+1 555 098 7654 (optional)"
-            onSave={(v) => onSaveField({ secondaryPhone: v })}
-          />
-        </View>
-      ) : fieldCfg.parentKey ? (
-        <View style={styles.ftValueSection}>
-          <Text style={styles.ftValueLabel}>Current value</Text>
-          <EditableField
-            label={fieldCfg.label}
-            value={parent?.[fieldCfg.parentKey]}
-            placeholder={`Enter ${fieldCfg.label.toLowerCase()}`}
-            multiline={fieldCfg.key === 'emergencyNote'}
-            onSave={(v) => onSaveField({ [fieldCfg.parentKey]: v })}
-          />
-        </View>
-      ) : null}
+      <View style={!isOn ? styles.ftValueDimmed : null}>
+        {fieldCfg.key === 'phones' ? (
+          <View style={styles.ftValueSection}>
+            <Text style={styles.ftValueLabel}>Primary phone</Text>
+            <EditableField
+              label="Primary phone"
+              value={parent?.primaryPhone}
+              placeholder="+1 555 012 3456"
+              onSave={(v) => onSaveField({ primaryPhone: v })}
+            />
+            <Text style={[styles.ftValueLabel, { marginTop: 10 }]}>Backup phone</Text>
+            <EditableField
+              label="Backup phone"
+              value={parent?.secondaryPhone}
+              placeholder="+1 555 098 7654 (optional)"
+              onSave={(v) => onSaveField({ secondaryPhone: v })}
+            />
+          </View>
+        ) : fieldCfg.key === 'childName' ? (
+          <View style={styles.ftValueSection}>
+            <View style={styles.ftRouteRow}>
+              <Text style={[styles.efValue, !resolved.childName && styles.efEmpty, { flex: 1 }]}>
+                {resolved.childName || 'No name yet — add a child profile'}
+              </Text>
+              {routeButton}
+            </View>
+          </View>
+        ) : fieldCfg.key === 'photo' ? (
+          <View style={styles.ftValueSection}>
+            <View style={styles.ftRouteRow}>
+              {resolved.photo ? (
+                <View style={styles.ftPhotoThumb}>
+                  <Image source={{ uri: resolved.photo }} style={styles.ftPhotoThumbImg} />
+                </View>
+              ) : (
+                <Text style={[styles.efValue, styles.efEmpty, { flex: 1 }]}>No photo yet</Text>
+              )}
+              {routeButton}
+            </View>
+          </View>
+        ) : fieldCfg.key === 'address' ? (
+          <View style={styles.ftValueSection}>
+            <Text style={styles.ftValueLabel}>Current value</Text>
+            {hasChild ? (
+              <View style={styles.ftRouteRow}>
+                <Text style={[styles.efValue, !resolved.address && styles.efEmpty, { flex: 1 }]}>
+                  {resolved.address || 'No address on this child\'s profile'}
+                </Text>
+                {routeButton}
+              </View>
+            ) : (
+              <EditableField
+                label="Home Address"
+                value={parent?.address}
+                placeholder="Enter home address"
+                onSave={(v) => onSaveField({ address: v })}
+              />
+            )}
+          </View>
+        ) : fieldCfg.key === 'emergencyNote' ? (
+          <EmergencyNoteEditor tagId={tagId} note={resolved.note} onSaved={onSaveNote} />
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -210,10 +326,16 @@ export default function TagDetailScreen({ route, navigation }) {
   const [statusLoading, setStatusLoading] = useState(false);
   const [disclaimerVisible, setDisclaimerVisible] = useState(false);
   const [pendingField, setPendingField] = useState(null);
+  const [childModalVisible, setChildModalVisible] = useState(false);
+  const [assignModalVisible, setAssignModalVisible] = useState(false);
+  const [pwConfirm, setPwConfirm] = useState(null); // { kind: 'remove' | 'deactivate' }
 
   const visibleFields = tag.visibleFields || {
-    childName: false, phones: false, address: false, emergencyNote: false,
+    childName: false, phones: false, address: false, emergencyNote: false, photo: false,
   };
+
+  const child = tag.childId ? (parent?.children || []).find((c) => c._id === tag.childId) : null;
+  const resolved = resolveTagIdentity(tag, parent, child);
 
   async function handleLostModeToggle() {
     const newVal = !tag.lostMode;
@@ -243,31 +365,26 @@ export default function TagDetailScreen({ route, navigation }) {
     );
   }
 
-  async function handleStatusToggle() {
-    const newStatus = tag.status === 'active' ? 'inactive' : 'active';
-    Alert.alert(
-      newStatus === 'active' ? 'Activate Tag' : 'Deactivate Tag',
-      newStatus === 'active'
-        ? 'This tag will become visible when scanned.'
-        : 'This tag will stop responding when scanned.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          onPress: async () => {
-            setStatusLoading(true);
-            try {
-              await updateTag(tag.tagId, { status: newStatus });
-              setTag((p) => ({ ...p, status: newStatus }));
-            } catch (err) {
-              Alert.alert('Error', getErrorMessage(err));
-            } finally {
-              setStatusLoading(false);
-            }
-          },
-        },
-      ]
-    );
+  function handleStatusToggle() {
+    if (tag.status === 'active') {
+      // Deactivating removes finder protection — require the account password.
+      setPwConfirm({ kind: 'deactivate' });
+      return;
+    }
+    // Reactivating needs no password (matches backend: only status==='deactivated' is gated).
+    reactivateTag();
+  }
+
+  async function reactivateTag() {
+    setStatusLoading(true);
+    try {
+      await updateTag(tag.tagId, { status: 'active' });
+      setTag((p) => ({ ...p, status: 'active' }));
+    } catch (err) {
+      Alert.alert('Error', getErrorMessage(err));
+    } finally {
+      setStatusLoading(false);
+    }
   }
 
   async function handleSaveLabel() {
@@ -307,26 +424,46 @@ export default function TagDetailScreen({ route, navigation }) {
     updateParent(updates);
   }
 
+  function handleSaveNote(note) {
+    setTag((p) => ({ ...p, emergencyNote: note }));
+  }
+
+  function handleEditRoute() {
+    if (child) {
+      setChildModalVisible(true);
+    } else {
+      setAssignModalVisible(true);
+    }
+  }
+
+  function handleChildSaved(children) {
+    updateParent({ children });
+    setChildModalVisible(false);
+  }
+
+  function handleAssignSaved(updatedTag) {
+    setTag((p) => ({ ...p, childId: updatedTag.childId || null }));
+    setAssignModalVisible(false);
+  }
+
   function handleDeleteTag() {
-    Alert.alert(
-      'Remove Tag',
-      `Remove tag ${tag.tagId} from your account? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteTag(tag.tagId);
-              navigation.goBack();
-            } catch (err) {
-              Alert.alert('Error', getErrorMessage(err));
-            }
-          },
-        },
-      ]
-    );
+    // Goes straight to the password modal (which already states this is
+    // permanent) rather than confirming twice — chaining a custom Modal open
+    // from inside an Alert.alert callback is also flaky on iOS, where the new
+    // modal's presentation can get dropped while the alert is still dismissing.
+    setPwConfirm({ kind: 'remove' });
+  }
+
+  async function handlePasswordConfirm(password) {
+    if (pwConfirm.kind === 'remove') {
+      await deleteTag(tag.tagId, password);
+      setPwConfirm(null);
+      navigation.goBack();
+    } else {
+      await updateTag(tag.tagId, { status: 'deactivated', password });
+      setTag((p) => ({ ...p, status: 'deactivated' }));
+      setPwConfirm(null);
+    }
   }
 
   const isActive = tag.status === 'active';
@@ -375,7 +512,16 @@ export default function TagDetailScreen({ route, navigation }) {
         </TouchableOpacity>
 
         {/* ── Finder Preview ── */}
-        <FinderPreview tag={tag} parent={parent} />
+        <FinderPreview tag={tag} parent={parent} resolved={resolved} />
+
+        {/* ── Assigned Child ── */}
+        <TouchableOpacity style={styles.assignRow} onPress={() => setAssignModalVisible(true)}>
+          <Ionicons name="people-outline" size={16} color={colors.primary} />
+          <Text style={styles.assignRowText}>
+            {child ? `Assigned to ${child.name}` : 'Not assigned to a child — tap to assign'}
+          </Text>
+          <Ionicons name="chevron-forward" size={15} color="#9ca3af" />
+        </TouchableOpacity>
 
         {/* ── Tag Label ── */}
         <View style={styles.section}>
@@ -423,7 +569,12 @@ export default function TagDetailScreen({ route, navigation }) {
               isOn={!!(visibleFields[cfg.key])}
               onToggle={(v) => handleFieldToggle(cfg.key, v)}
               parent={parent}
+              resolved={resolved}
+              hasChild={!!child}
               onSaveField={handleSaveField}
+              onSaveNote={handleSaveNote}
+              onRoute={handleEditRoute}
+              tagId={tag.tagId}
             />
           ))}
         </View>
@@ -478,6 +629,34 @@ export default function TagDetailScreen({ route, navigation }) {
         onAgree={() => { setDisclaimerVisible(false); if (pendingField) { applyFieldToggle(pendingField, true); setPendingField(null); } }}
         onCancel={() => { setDisclaimerVisible(false); setPendingField(null); }}
       />
+
+      <ChildFormModal
+        visible={childModalVisible}
+        child={child}
+        onClose={() => setChildModalVisible(false)}
+        onSaved={handleChildSaved}
+      />
+
+      <AssignChildModal
+        visible={assignModalVisible}
+        tagId={tag.tagId}
+        currentChildId={tag.childId || null}
+        onClose={() => setAssignModalVisible(false)}
+        onSaved={handleAssignSaved}
+      />
+
+      <PasswordConfirmModal
+        visible={!!pwConfirm}
+        title={pwConfirm?.kind === 'remove' ? `Remove tag ${tag.tagId}?` : 'Deactivate this tag?'}
+        body={
+          pwConfirm?.kind === 'remove'
+            ? 'This permanently removes the tag from your account. This cannot be undone.'
+            : 'This tag will stop responding when scanned until reactivated.'
+        }
+        confirmLabel={pwConfirm?.kind === 'remove' ? 'Remove' : 'Deactivate'}
+        onConfirm={handlePasswordConfirm}
+        onCancel={() => setPwConfirm(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -516,6 +695,14 @@ const styles = StyleSheet.create({
   lostButtonActive: { backgroundColor: '#16a34a' },
   lostButtonText: { color: '#fff', fontSize: 16, fontWeight: '800' },
 
+  // Assigned-child row
+  assignRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#eff6ff', borderWidth: 1.5, borderColor: '#bfdbfe', borderRadius: 12,
+    paddingVertical: 12, paddingHorizontal: 14, marginBottom: 14,
+  },
+  assignRowText: { flex: 1, fontSize: 13, fontWeight: '600', color: '#1e3a8a' },
+
   // Section card
   section: {
     backgroundColor: '#fff', borderRadius: 16, padding: 18, marginBottom: 14,
@@ -540,6 +727,12 @@ const styles = StyleSheet.create({
   previewSosHint: { color: 'rgba(255,255,255,0.75)', fontSize: 11, textAlign: 'center' },
   previewEmpty: { fontSize: 13, color: '#9ca3af', padding: 16, textAlign: 'center', fontStyle: 'italic' },
   previewRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 12, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  previewNameRow: { alignItems: 'center', gap: 10, justifyContent: 'flex-start' },
+  previewAvatar: {
+    width: 34, height: 34, borderRadius: 17, backgroundColor: '#dbeafe',
+    borderWidth: 1.5, borderColor: '#93c5fd', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  },
+  previewAvatarImg: { width: '100%', height: '100%' },
   previewRowLabel: { fontSize: 10, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.5 },
   previewRowValue: { fontSize: 13, fontWeight: '600', color: '#111827' },
   previewCallBtn: { margin: 10, backgroundColor: '#16a34a', borderRadius: 10, padding: 12, alignItems: 'center' },
@@ -580,6 +773,17 @@ const styles = StyleSheet.create({
   },
   ftValueSection: { marginTop: 10, paddingLeft: 4 },
   ftValueLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.4, marginBottom: 4 },
+  ftValueDimmed: { opacity: 0.45 },
+  ftRouteRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  ftPhotoThumb: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: '#dbeafe',
+    borderWidth: 1.5, borderColor: '#93c5fd', overflow: 'hidden',
+  },
+  ftPhotoThumbImg: { width: '100%', height: '100%' },
+
+  // Edit-elsewhere route button
+  routeBtn: { paddingVertical: 4, paddingHorizontal: 10 },
+  routeBtnText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
 
   // Editable field
   efRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
@@ -593,11 +797,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f4ff', marginBottom: 8,
   },
   efInputMulti: { minHeight: 72, textAlignVertical: 'top' },
-  efBtnRow: { flexDirection: 'row', gap: 8 },
+  efBtnRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   efCancelBtn: { flex: 1, borderWidth: 1.5, borderColor: '#d1d5db', borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
   efCancelText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
   efSaveBtn: { flex: 1, backgroundColor: '#2563eb', borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
   efSaveText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  noteSaved: { fontSize: 12, color: '#16a34a', fontWeight: '600' },
 
   // Scan History
   scanHistoryButton: {

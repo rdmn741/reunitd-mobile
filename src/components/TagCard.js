@@ -27,7 +27,8 @@ export default function TagCard({ tag: initialTag, onUpdate, onPress }) {
   // Web convention: lostMode=true → sharing ON (info visible), lostMode=false → hidden
   const sharingOn  = !!tag.lostMode;
   const isActive   = tag.status === 'active';
-  const childName  = parent?.childName;
+  const assignedChild = tag.childId ? (parent?.children || []).find((c) => c._id === tag.childId) : null;
+  const childName  = assignedChild ? assignedChild.name : parent?.childName;
 
   function update(patch) {
     const updated = { ...tag, ...patch };

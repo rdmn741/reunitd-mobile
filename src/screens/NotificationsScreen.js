@@ -15,6 +15,12 @@ import { colors } from '../theme';
 import { getNotifications, markAllNotificationsRead, getErrorMessage } from '../api';
 import { useNotifications } from '../NotificationsContext';
 
+const NOTIF_TYPE_STYLES = {
+  found_alert:     { icon: 'alert-circle', color: colors.danger,  bg: '#fee2e2' },
+  security_alert:  { icon: 'shield-half',  color: colors.warning, bg: colors.warningFaint },
+  scan:            { icon: 'radio-outline', color: colors.primary, bg: '#eff6ff' },
+};
+
 function timeAgo(dateStr) {
   const now = new Date();
   const date = new Date(dateStr);
@@ -42,15 +48,11 @@ function formatDateTime(dateStr) {
 }
 
 function NotificationRow({ item }) {
-  const isFound = item.type === 'found_alert';
+  const style = NOTIF_TYPE_STYLES[item.type] || NOTIF_TYPE_STYLES.scan;
   return (
     <View style={[styles.row, !item.read && styles.rowUnread]}>
-      <View style={[styles.iconContainer, isFound && styles.iconContainerAlert]}>
-        <Ionicons
-          name={isFound ? 'alert-circle' : 'radio-outline'}
-          size={20}
-          color={isFound ? colors.danger : colors.primary}
-        />
+      <View style={[styles.iconContainer, { backgroundColor: style.bg }]}>
+        <Ionicons name={style.icon} size={20} color={style.color} />
       </View>
       <View style={styles.rowContent}>
         <View style={styles.rowTop}>
@@ -185,7 +187,6 @@ const styles = StyleSheet.create({
     marginRight: 12,
     flexShrink: 0,
   },
-  iconContainerAlert: { backgroundColor: '#fee2e2' },
   rowContent: { flex: 1 },
   rowTop: {
     flexDirection: 'row',

@@ -95,6 +95,11 @@ export async function updateMe(data) {
   return response.data;
 }
 
+export async function changePassword(currentPassword, newPassword) {
+  const response = await api.put('/api/auth/change-password', { currentPassword, newPassword });
+  return response.data;
+}
+
 export async function addChild(data) {
   const response = await api.post('/api/auth/children', data);
   return response.data; // { children: [...] }

@@ -25,6 +25,7 @@ import {
   getBiometricLabel,
 } from '../biometrics';
 import ChildFormModal from '../components/ChildFormModal';
+import ChangePasswordModal from '../components/ChangePasswordModal';
 
 const GENDER_ICON = { male: 'male', female: 'female', other: 'person' };
 
@@ -148,6 +149,12 @@ export default function ProfileScreen() {
   const [biometricLabel, setBiometricLabelState] = useState('Face ID');
   const [childModalVisible, setChildModalVisible] = useState(false);
   const [editingChild, setEditingChild] = useState(null);
+  const [changePasswordVisible, setChangePasswordVisible] = useState(false);
+
+  function handlePasswordChanged() {
+    setChangePasswordVisible(false);
+    Alert.alert('Password Changed', 'Your password has been changed successfully.');
+  }
 
   function openChildModal(child) {
     setEditingChild(child);
@@ -257,6 +264,18 @@ export default function ProfileScreen() {
                 <InfoRow label="Home Address" value={parent.address} />
               </View>
 
+              <TouchableOpacity
+                style={styles.settingsRow}
+                onPress={() => setChangePasswordVisible(true)}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Ionicons name="key-outline" size={18} color={colors.primary} />
+                  <Text style={styles.settingsRowText}>Change Password</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
+              </TouchableOpacity>
+
               {/* Children */}
               <View style={styles.infoCard}>
                 <View style={styles.infoCardHeader}>
@@ -346,6 +365,12 @@ export default function ProfileScreen() {
         onClose={() => setChildModalVisible(false)}
         onSaved={handleChildSaved}
       />
+
+      <ChangePasswordModal
+        visible={changePasswordVisible}
+        onClose={() => setChangePasswordVisible(false)}
+        onChanged={handlePasswordChanged}
+      />
     </SafeAreaView>
   );
 }
@@ -427,6 +452,13 @@ const styles = StyleSheet.create({
   childThumbImg: { width: '100%', height: '100%' },
   childName: { fontSize: 14, fontWeight: '600', color: '#374151', flex: 1 },
   childEmpty: { fontSize: 13, color: '#9ca3af', fontStyle: 'italic', paddingVertical: 6 },
+
+  settingsRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
+  },
+  settingsRowText: { fontSize: 14, fontWeight: '600', color: '#111827' },
 
   appInfoCard: {
     backgroundColor: '#eff6ff',

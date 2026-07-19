@@ -95,6 +95,11 @@ export async function updateMe(data) {
   return response.data;
 }
 
+export async function resendVerification() {
+  const response = await api.post('/api/auth/resend-verification');
+  return response.data; // { message, to }
+}
+
 export async function changePassword(currentPassword, newPassword) {
   const response = await api.put('/api/auth/change-password', { currentPassword, newPassword });
   return response.data;

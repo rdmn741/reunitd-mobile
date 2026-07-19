@@ -41,6 +41,7 @@ function InfoRow({ label, value }) {
 function EditProfileForm({ parent, onSave, onCancel }) {
   const [form, setForm] = useState({
     name: parent.name || '',
+    email: parent.email || '',
     primaryPhone: parent.primaryPhone || '',
     secondaryPhone: parent.secondaryPhone || '',
     address: parent.address || '',
@@ -56,8 +57,9 @@ function EditProfileForm({ parent, onSave, onCancel }) {
       Alert.alert('Missing Field', 'Name is required.');
       return;
     }
-    if (!form.primaryPhone.trim()) {
-      Alert.alert('Missing Field', 'Primary phone is required.');
+    const email = form.email.trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      Alert.alert('Invalid Email', 'A valid email address is required.');
       return;
     }
 
@@ -66,11 +68,20 @@ function EditProfileForm({ parent, onSave, onCancel }) {
       const payload = {
         name: form.name.trim(),
         primaryPhone: form.primaryPhone.trim(),
-        secondaryPhone: form.secondaryPhone.trim() || undefined,
-        address: form.address.trim() || undefined,
+        secondaryPhone: form.secondaryPhone.trim(),
+        address: form.address.trim(),
       };
-      await updateMe(payload);
-      onSave(payload);
+      // Only send email when it changed — a change stays pending until the
+      // new address is verified, so the server decides what `email` is.
+      if (email !== (parent.email || '').toLowerCase()) payload.email = email;
+      const data = await updateMe(payload);
+      if (data.emailChangePending) {
+        Alert.alert(
+          'Confirm Your New Email',
+          `We sent a confirmation link to ${email}. Your login email will change once you tap it.`
+        );
+      }
+      onSave(data.parent || payload);
     } catch (err) {
       Alert.alert('Save Failed', getErrorMessage(err));
     } finally {
@@ -91,7 +102,19 @@ function EditProfileForm({ parent, onSave, onCancel }) {
         placeholderTextColor="#9ca3af"
       />
 
-      <Text style={styles.label}>Primary Phone *</Text>
+      <Text style={styles.label}>Email *</Text>
+      <TextInput
+        style={styles.input}
+        value={form.email}
+        onChangeText={(v) => setField('email', v)}
+        placeholder="you@example.com"
+        placeholderTextColor="#9ca3af"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
+
+      <Text style={styles.label}>Primary Phone</Text>
       <TextInput
         style={styles.input}
         value={form.primaryPhone}
@@ -259,6 +282,9 @@ export default function ProfileScreen() {
                 </View>
                 <InfoRow label="Full Name" value={parent.name} />
                 <InfoRow label="Email" value={parent.email} />
+                {parent.pendingEmail ? (
+                  <InfoRow label="New Email (unverified)" value={parent.pendingEmail} />
+                ) : null}
                 <InfoRow label="Primary Phone" value={parent.primaryPhone} />
                 <InfoRow label="Secondary Phone" value={parent.secondaryPhone} />
                 <InfoRow label="Home Address" value={parent.address} />

@@ -39,8 +39,8 @@ export default function RegisterScreen({ navigation }) {
   async function handleRegister() {
     const { name, email, password, confirmPassword, primaryPhone } = form;
 
-    if (!name.trim() || !email.trim() || !password || !primaryPhone.trim()) {
-      Alert.alert('Missing Fields', 'Name, email, password, and primary phone are required.');
+    if (!name.trim() || !email.trim() || !password) {
+      Alert.alert('Missing Fields', 'Name, email, and password are required.');
       return;
     }
     if (password !== confirmPassword) {
@@ -58,14 +58,18 @@ export default function RegisterScreen({ navigation }) {
         name: name.trim(),
         email: email.trim(),
         password,
-        primaryPhone: primaryPhone.trim(),
       };
+      if (primaryPhone.trim()) payload.primaryPhone = primaryPhone.trim();
       if (form.secondaryPhone.trim()) payload.secondaryPhone = form.secondaryPhone.trim();
       if (form.emergencyNote.trim()) payload.emergencyNote = form.emergencyNote.trim();
 
       await register(payload);
       // Auto-login after registration
       await login(email.trim(), password);
+      Alert.alert(
+        'Verify Your Email',
+        `We sent a verification link to ${email.trim()}. Tap it to confirm your address.`
+      );
     } catch (err) {
       Alert.alert('Registration Failed', getErrorMessage(err));
     } finally {
@@ -150,7 +154,7 @@ export default function RegisterScreen({ navigation }) {
 
             <Text style={[styles.sectionTitle, { marginTop: 8 }]}>Contact Info</Text>
 
-            <Text style={styles.label}>Primary Phone *</Text>
+            <Text style={styles.label}>Primary Phone (optional)</Text>
             <TextInput
               style={styles.input}
               placeholder="+1 555 123 4567"

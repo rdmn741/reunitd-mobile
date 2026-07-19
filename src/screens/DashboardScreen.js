@@ -18,9 +18,46 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
-import { getTags, activateTag, getErrorMessage } from '../api';
+import { getTags, activateTag, resendVerification, getErrorMessage } from '../api';
 import { useAuth } from '../AuthContext';
 import TagCard from '../components/TagCard';
+
+function VerifyEmailBanner({ email }) {
+  const [sending, setSending] = useState(false);
+
+  async function handleResend() {
+    setSending(true);
+    try {
+      await resendVerification();
+      Alert.alert('Email Sent', `We sent a new verification link to ${email}.`);
+    } catch (err) {
+      Alert.alert('Error', getErrorMessage(err));
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <View style={styles.verifyBanner}>
+      <Ionicons name="mail-unread-outline" size={22} color="#92400e" />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.verifyBannerTitle}>Verify your email address</Text>
+        <Text style={styles.verifyBannerBody}>We sent a verification link to {email}.</Text>
+      </View>
+      <TouchableOpacity
+        style={[styles.verifyBannerButton, sending && { opacity: 0.6 }]}
+        onPress={handleResend}
+        disabled={sending}
+      >
+        {sending ? (
+          <ActivityIndicator color="#fff" size="small" />
+        ) : (
+          <Text style={styles.verifyBannerButtonText}>Resend</Text>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 function StatsRow({ tags }) {
   const total = tags.length;
@@ -280,7 +317,7 @@ function ActivateModal({ visible, onClose, onSuccess }) {
 }
 
 export default function DashboardScreen({ navigation }) {
-  const { parent } = useAuth();
+  const { parent, refreshParent } = useAuth();
   const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -304,6 +341,9 @@ export default function DashboardScreen({ navigation }) {
 
   function onRefresh() {
     setRefreshing(true);
+    // Also re-fetch the parent so the verify-email banner clears once the
+    // link has been clicked; banner state is not worth failing the refresh over.
+    refreshParent().catch(() => {});
     fetchTags();
   }
 
@@ -354,6 +394,9 @@ export default function DashboardScreen({ navigation }) {
           }
           ListHeaderComponent={
             <>
+              {parent?.emailVerified === false && (
+                <VerifyEmailBanner email={parent.email} />
+              )}
               <StatsRow tags={tags} />
               {tags.length > 0 && (
                 <Text style={styles.sectionTitle}>Your Tags</Text>
@@ -418,6 +461,27 @@ const styles = StyleSheet.create({
   centerLoader: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   loadingText: { color: '#6b7280', fontSize: 14 },
   listContent: { padding: 16, paddingBottom: 32 },
+  verifyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#fef3c7',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+  },
+  verifyBannerTitle: { fontSize: 13, fontWeight: '700', color: '#92400e' },
+  verifyBannerBody: { fontSize: 12, color: '#92400e', marginTop: 1 },
+  verifyBannerButton: {
+    backgroundColor: '#92400e',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  verifyBannerButtonText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   statsRow: {
     flexDirection: 'row',
     backgroundColor: '#fff',

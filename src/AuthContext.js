@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { getMe, login as apiLogin, verifyTwoFactor, setTwoFactorEnabled, TOKEN_STORE_KEY, setUnauthorizedHandler } from './api';
+import { getMe, login as apiLogin, verifyTwoFactor, verifyEmailCode, setTwoFactorEnabled, TOKEN_STORE_KEY, setUnauthorizedHandler } from './api';
 import { isBiometricEnabled, isBiometricAvailable, authenticateWithBiometrics } from './biometrics';
 
 const REMEMBERED_TOKEN_KEY = 'reunitd_remembered_token';
@@ -106,6 +106,11 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const data = await apiLogin(email, password);
+    // Unverified account — no session yet; caller completes the OTP step via
+    // completeEmailVerify(). Don't store anything here.
+    if (data.verifyRequired) {
+      return data; // { verifyRequired: true, tempToken, email }
+    }
     // Account has 2FA enabled — no session token yet; caller must complete the
     // code step via completeTwoFactor(). Don't store anything here.
     if (data.twoFactorRequired) {
@@ -140,6 +145,20 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
+  // Complete mandatory email verification with the emailed OTP + temp token
+  // from register()/login(). On success the account gets its first session.
+  const completeEmailVerify = useCallback(async (tempToken, code) => {
+    const data = await verifyEmailCode(tempToken, code);
+    await SecureStore.setItemAsync(TOKEN_STORE_KEY, data.token);
+    setToken(data.token);
+    setParent(data.parent);
+    // Freshly verified account — nudge 2FA if it isn't on yet.
+    if (data.parent && !data.parent.twoFactorEnabled) {
+      setMfaPromptVisible(true);
+    }
+    return data;
+  }, []);
+
   const refreshParent = useCallback(async () => {
     const data = await getMe();
     setParent(data.parent);
@@ -152,7 +171,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ parent, token, loading, login, completeTwoFactor, logout, loginWithBiometric, refreshParent, updateParent, mfaPromptVisible, enableMfaFromPrompt, dismissMfaPrompt }}
+      value={{ parent, token, loading, login, completeTwoFactor, completeEmailVerify, logout, loginWithBiometric, refreshParent, updateParent, mfaPromptVisible, enableMfaFromPrompt, dismissMfaPrompt }}
     >
       {children}
     </AuthContext.Provider>

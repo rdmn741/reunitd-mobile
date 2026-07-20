@@ -12,12 +12,13 @@ import {
   Platform,
   Switch,
   Image,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
 import { useAuth } from '../AuthContext';
-import { updateMe, getErrorMessage } from '../api';
+import { updateMe, confirmEmailChange, resendEmailChange, getErrorMessage } from '../api';
 import {
   isBiometricAvailable,
   isBiometricEnabled,
@@ -38,7 +39,7 @@ function InfoRow({ label, value }) {
   );
 }
 
-function EditProfileForm({ parent, onSave, onCancel }) {
+function EditProfileForm({ parent, onSave, onCancel, onEmailChangePending }) {
   const [form, setForm] = useState({
     name: parent.name || '',
     email: parent.email || '',
@@ -76,12 +77,11 @@ function EditProfileForm({ parent, onSave, onCancel }) {
       if (email !== (parent.email || '').toLowerCase()) payload.email = email;
       const data = await updateMe(payload);
       if (data.emailChangePending) {
-        Alert.alert(
-          'Confirm Your New Email',
-          `We sent a confirmation link to ${email}. Your login email will change once you tap it.`
-        );
+        // Non-email fields already saved; collect the OTP for the new address.
+        onEmailChangePending(email, data.parent || payload);
+      } else {
+        onSave(data.parent || payload);
       }
-      onSave(data.parent || payload);
     } catch (err) {
       Alert.alert('Save Failed', getErrorMessage(err));
     } finally {
@@ -163,6 +163,80 @@ function EditProfileForm({ parent, onSave, onCancel }) {
   );
 }
 
+function VerifyEmailChangeModal({ visible, email, onConfirmed, onClose }) {
+  const [code, setCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [resending, setResending] = useState(false);
+
+  async function handleConfirm() {
+    if (code.length !== 6) {
+      Alert.alert('Invalid Code', 'Please enter the 6-digit code from your email.');
+      return;
+    }
+    setVerifying(true);
+    try {
+      const data = await confirmEmailChange(code);
+      setCode('');
+      onConfirmed(data.parent);
+    } catch (err) {
+      Alert.alert('Verification Failed', getErrorMessage(err));
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  async function handleResend() {
+    setResending(true);
+    try {
+      await resendEmailChange();
+      Alert.alert('Code Sent', `A new code is on its way to ${email}.`);
+    } catch (err) {
+      Alert.alert('Could Not Resend', getErrorMessage(err));
+    } finally {
+      setResending(false);
+    }
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>Confirm your new email</Text>
+          <Text style={styles.modalSub}>Enter the 6-digit code we sent to {email}</Text>
+          <TextInput
+            style={[styles.input, styles.codeInput]}
+            placeholder="000000"
+            placeholderTextColor="#9ca3af"
+            keyboardType="number-pad"
+            maxLength={6}
+            autoFocus
+            value={code}
+            onChangeText={(t) => setCode(t.replace(/[^0-9]/g, ''))}
+            onSubmitEditing={handleConfirm}
+          />
+          <TouchableOpacity
+            style={[styles.saveButton, verifying && { opacity: 0.6 }]}
+            onPress={handleConfirm}
+            disabled={verifying}
+          >
+            {verifying ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.saveButtonText}>Confirm Email</Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.modalResendLink} onPress={handleResend} disabled={resending}>
+            <Text style={styles.editLink}>{resending ? 'Sending…' : 'Resend code'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.modalCancelLink} onPress={onClose}>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function ProfileScreen() {
   const { parent, logout, updateParent } = useAuth();
   const [editing, setEditing] = useState(false);
@@ -173,6 +247,7 @@ export default function ProfileScreen() {
   const [childModalVisible, setChildModalVisible] = useState(false);
   const [editingChild, setEditingChild] = useState(null);
   const [changePasswordVisible, setChangePasswordVisible] = useState(false);
+  const [emailChange, setEmailChange] = useState(null); // { email } while OTP pending
 
   function handlePasswordChanged() {
     setChangePasswordVisible(false);
@@ -240,6 +315,20 @@ export default function ProfileScreen() {
     setEditing(false);
   }
 
+  // Non-email fields are already saved; keep the parent in sync and open the OTP
+  // modal for the pending address. `email` stays unchanged until confirmed.
+  function handleEmailChangePending(newEmail, savedParent) {
+    if (savedParent) updateParent(savedParent);
+    setEditing(false);
+    setEmailChange({ email: newEmail });
+  }
+
+  function handleEmailChangeConfirmed(updatedParent) {
+    if (updatedParent) updateParent(updatedParent);
+    setEmailChange(null);
+    Alert.alert('Email Updated', 'Your login email has been changed.');
+  }
+
   if (!parent) return null;
 
   return (
@@ -269,6 +358,7 @@ export default function ProfileScreen() {
             <EditProfileForm
               parent={parent}
               onSave={handleSaveProfile}
+              onEmailChangePending={handleEmailChangePending}
               onCancel={() => setEditing(false)}
             />
           ) : (
@@ -396,6 +486,13 @@ export default function ProfileScreen() {
         visible={changePasswordVisible}
         onClose={() => setChangePasswordVisible(false)}
         onChanged={handlePasswordChanged}
+      />
+
+      <VerifyEmailChangeModal
+        visible={!!emailChange}
+        email={emailChange?.email}
+        onConfirmed={handleEmailChangeConfirmed}
+        onClose={() => setEmailChange(null)}
       />
     </SafeAreaView>
   );
@@ -563,4 +660,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveButtonText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.5)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 24,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: '#111827', marginBottom: 4 },
+  modalSub: { fontSize: 13, color: '#6b7280', marginBottom: 16 },
+  codeInput: {
+    textAlign: 'center',
+    fontSize: 26,
+    letterSpacing: 8,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  modalResendLink: { alignSelf: 'center', marginTop: 14 },
+  modalCancelLink: { alignSelf: 'center', marginTop: 10 },
 });

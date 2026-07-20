@@ -95,8 +95,25 @@ export async function updateMe(data) {
   return response.data;
 }
 
-export async function resendVerification() {
-  const response = await api.post('/api/auth/resend-verification');
+// Email verification (mandatory OTP for new / unverified accounts)
+export async function verifyEmailCode(tempToken, code) {
+  const response = await api.post('/api/auth/verify-email-code', { tempToken, code });
+  return response.data; // { token, parent }
+}
+
+export async function resendVerifyCode(tempToken) {
+  const response = await api.post('/api/auth/resend-verify-code', { tempToken });
+  return response.data; // { message, to }
+}
+
+// Email change (authenticated OTP confirmation)
+export async function confirmEmailChange(code) {
+  const response = await api.post('/api/auth/confirm-email-change', { code });
+  return response.data; // { message, parent }
+}
+
+export async function resendEmailChange() {
+  const response = await api.post('/api/auth/resend-email-change');
   return response.data; // { message, to }
 }
 

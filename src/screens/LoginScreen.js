@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../AuthContext';
-import { getErrorMessage, resendTwoFactor } from '../api';
+import { getErrorMessage, resendTwoFactor, resendVerifyCode } from '../api';
 import { isBiometricAvailable, isBiometricEnabled, getBiometricLabel } from '../biometrics';
 import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,7 +23,7 @@ import { colors, radii, shadow } from '../theme';
 const REMEMBERED_TOKEN_KEY = 'reunitd_remembered_token';
 
 export default function LoginScreen({ navigation }) {
-  const { login, completeTwoFactor, loginWithBiometric } = useAuth();
+  const { login, completeTwoFactor, completeEmailVerify, loginWithBiometric } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,8 +31,10 @@ export default function LoginScreen({ navigation }) {
   const [showBiometric, setShowBiometric] = useState(false);
   const [biometricLabel, setBiometricLabelState] = useState('Face ID');
   const [biometricLoading, setBiometricLoading] = useState(false);
-  // 2FA step (set when login returns twoFactorRequired)
+  // Code step — set when login returns twoFactorRequired or verifyRequired.
+  // pendingKind distinguishes which OTP flow we're completing.
   const [tempToken, setTempToken] = useState(null);
+  const [pendingKind, setPendingKind] = useState(null); // '2fa' | 'email'
   const [code, setCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
@@ -73,9 +75,15 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
     try {
       const data = await login(trimEmail, password);
-      if (data && data.twoFactorRequired) {
+      if (data && data.verifyRequired) {
+        // Account isn't email-verified — switch to the OTP step
+        setTempToken(data.tempToken);
+        setPendingKind('email');
+        setCode('');
+      } else if (data && data.twoFactorRequired) {
         // Account has 2FA — switch to the code-entry step
         setTempToken(data.tempToken);
+        setPendingKind('2fa');
         setCode('');
       }
       // Otherwise navigation is handled by root navigator watching auth state
@@ -93,7 +101,11 @@ export default function LoginScreen({ navigation }) {
     }
     setVerifying(true);
     try {
-      await completeTwoFactor(tempToken, code);
+      if (pendingKind === 'email') {
+        await completeEmailVerify(tempToken, code);
+      } else {
+        await completeTwoFactor(tempToken, code);
+      }
       // Navigation handled by root navigator watching auth state
     } catch (err) {
       Alert.alert('Verification Failed', getErrorMessage(err));
@@ -105,7 +117,11 @@ export default function LoginScreen({ navigation }) {
   async function handleResend() {
     setResending(true);
     try {
-      await resendTwoFactor(tempToken);
+      if (pendingKind === 'email') {
+        await resendVerifyCode(tempToken);
+      } else {
+        await resendTwoFactor(tempToken);
+      }
       Alert.alert('Code Sent', 'A new verification code is on its way to your email.');
     } catch (err) {
       Alert.alert('Could Not Resend', getErrorMessage(err));
@@ -114,8 +130,9 @@ export default function LoginScreen({ navigation }) {
     }
   }
 
-  function cancelTwoFactor() {
+  function cancelCodeStep() {
     setTempToken(null);
+    setPendingKind(null);
     setCode('');
     setPassword('');
   }
@@ -137,7 +154,7 @@ export default function LoginScreen({ navigation }) {
 
           {tempToken ? (
             <View style={styles.card}>
-              <Text style={styles.heading}>Check your email</Text>
+              <Text style={styles.heading}>{pendingKind === 'email' ? 'Verify your email' : 'Check your email'}</Text>
               <Text style={styles.subheading}>Enter the 6-digit code we sent to {email}</Text>
 
               <Text style={styles.label}>Verification code</Text>
@@ -162,14 +179,14 @@ export default function LoginScreen({ navigation }) {
                 {verifying ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.loginButtonText}>Verify & Sign In</Text>
+                  <Text style={styles.loginButtonText}>{pendingKind === 'email' ? 'Verify & Continue' : 'Verify & Sign In'}</Text>
                 )}
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.centerLink} onPress={handleResend} disabled={resending}>
                 <Text style={styles.forgotText}>{resending ? 'Sending…' : 'Resend code'}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.centerLinkTight, styles.backRow]} onPress={cancelTwoFactor}>
+              <TouchableOpacity style={[styles.centerLinkTight, styles.backRow]} onPress={cancelCodeStep}>
                 <Ionicons name="chevron-back" size={15} color={colors.muted} />
                 <Text style={styles.backText}>Back to login</Text>
               </TouchableOpacity>

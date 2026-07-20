@@ -12,15 +12,14 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { register } from '../api';
+import { register, resendVerifyCode, getErrorMessage } from '../api';
 import { useAuth } from '../AuthContext';
-import { getErrorMessage } from '../api';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
 import Wordmark from '../components/Wordmark';
 
 export default function RegisterScreen({ navigation }) {
-  const { login } = useAuth();
+  const { completeEmailVerify } = useAuth();
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -30,6 +29,11 @@ export default function RegisterScreen({ navigation }) {
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  // Email-verify OTP step (set once register returns verifyRequired)
+  const [tempToken, setTempToken] = useState(null);
+  const [code, setCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [resending, setResending] = useState(false);
 
   function setField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -63,17 +67,45 @@ export default function RegisterScreen({ navigation }) {
       };
       if (primaryPhone.trim()) payload.primaryPhone = primaryPhone.trim();
 
-      await register(payload);
-      // Auto-login after registration
-      await login(email.trim(), password);
-      Alert.alert(
-        'Verify Your Email',
-        `We sent a verification link to ${email.trim()}. Tap it to confirm your address.`
-      );
+      const data = await register(payload);
+      // Mandatory email verification — move to the OTP step, no session yet.
+      if (data && data.verifyRequired) {
+        setTempToken(data.tempToken);
+        setCode('');
+      }
     } catch (err) {
       Alert.alert('Registration Failed', getErrorMessage(err));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleVerify() {
+    if (code.length !== 6) {
+      Alert.alert('Invalid Code', 'Please enter the 6-digit code from your email.');
+      return;
+    }
+    setVerifying(true);
+    try {
+      // On success the account gets its first session and the root navigator
+      // switches to the app automatically.
+      await completeEmailVerify(tempToken, code);
+    } catch (err) {
+      Alert.alert('Verification Failed', getErrorMessage(err));
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  async function handleResend() {
+    setResending(true);
+    try {
+      await resendVerifyCode(tempToken);
+      Alert.alert('Code Sent', 'A new verification code is on its way to your email.');
+    } catch (err) {
+      Alert.alert('Could Not Resend', getErrorMessage(err));
+    } finally {
+      setResending(false);
     }
   }
 
@@ -93,10 +125,43 @@ export default function RegisterScreen({ navigation }) {
               <Text style={styles.backText}>Back</Text>
             </TouchableOpacity>
             <Wordmark size={30} style={{ marginBottom: 8 }} />
-            <Text style={styles.heading}>Create Account</Text>
-            <Text style={styles.subheading}>Set up your reunItD parent account</Text>
+            <Text style={styles.heading}>{tempToken ? 'Verify your email' : 'Create Account'}</Text>
+            <Text style={styles.subheading}>
+              {tempToken ? `Enter the 6-digit code we sent to ${form.email.trim()}` : 'Set up your reunItD parent account'}
+            </Text>
           </View>
 
+          {tempToken ? (
+            <View style={styles.card}>
+              <Text style={styles.label}>Verification code</Text>
+              <TextInput
+                style={[styles.input, styles.codeInput]}
+                placeholder="000000"
+                placeholderTextColor="#9ca3af"
+                keyboardType="number-pad"
+                maxLength={6}
+                autoFocus
+                returnKeyType="done"
+                value={code}
+                onChangeText={(t) => setCode(t.replace(/[^0-9]/g, ''))}
+                onSubmitEditing={handleVerify}
+              />
+              <TouchableOpacity
+                style={[styles.registerButton, verifying && styles.registerButtonDisabled]}
+                onPress={handleVerify}
+                disabled={verifying}
+              >
+                {verifying ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.registerButtonText}>Verify & Continue</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.resendLink} onPress={handleResend} disabled={resending}>
+                <Text style={styles.resendText}>{resending ? 'Sending…' : 'Resend code'}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Personal Info</Text>
 
@@ -181,13 +246,16 @@ export default function RegisterScreen({ navigation }) {
               )}
             </TouchableOpacity>
           </View>
+          )}
 
-          <View style={styles.loginRow}>
-            <Text style={styles.loginText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-              <Text style={styles.loginLink}>Sign in</Text>
-            </TouchableOpacity>
-          </View>
+          {!tempToken && (
+            <View style={styles.loginRow}>
+              <Text style={styles.loginText}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                <Text style={styles.loginLink}>Sign in</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -213,6 +281,15 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
+  codeInput: {
+    textAlign: 'center',
+    fontSize: 26,
+    letterSpacing: 8,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  resendLink: { alignSelf: 'center', marginTop: 16 },
+  resendText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
   sectionTitle: {
     fontSize: 15,
     fontWeight: '700',

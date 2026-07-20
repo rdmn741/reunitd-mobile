@@ -17,6 +17,7 @@ import { useAuth } from '../AuthContext';
 import { getErrorMessage } from '../api';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
+import Wordmark from '../components/Wordmark';
 
 export default function RegisterScreen({ navigation }) {
   const { login } = useAuth();
@@ -26,8 +27,6 @@ export default function RegisterScreen({ navigation }) {
     password: '',
     confirmPassword: '',
     primaryPhone: '',
-    secondaryPhone: '',
-    emergencyNote: '',
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -43,12 +42,15 @@ export default function RegisterScreen({ navigation }) {
       Alert.alert('Missing Fields', 'Name, email, and password are required.');
       return;
     }
-    if (password !== confirmPassword) {
-      Alert.alert('Password Mismatch', 'Passwords do not match.');
+    if (password.length < 8 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password)) {
+      Alert.alert(
+        'Weak Password',
+        'Password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number.'
+      );
       return;
     }
-    if (password.length < 8) {
-      Alert.alert('Weak Password', 'Password must be at least 8 characters.');
+    if (password !== confirmPassword) {
+      Alert.alert('Password Mismatch', 'Passwords do not match.');
       return;
     }
 
@@ -60,8 +62,6 @@ export default function RegisterScreen({ navigation }) {
         password,
       };
       if (primaryPhone.trim()) payload.primaryPhone = primaryPhone.trim();
-      if (form.secondaryPhone.trim()) payload.secondaryPhone = form.secondaryPhone.trim();
-      if (form.emergencyNote.trim()) payload.emergencyNote = form.emergencyNote.trim();
 
       await register(payload);
       // Auto-login after registration
@@ -92,6 +92,7 @@ export default function RegisterScreen({ navigation }) {
               <Ionicons name="chevron-back" size={16} color={colors.muted} />
               <Text style={styles.backText}>Back</Text>
             </TouchableOpacity>
+            <Wordmark size={30} style={{ marginBottom: 8 }} />
             <Text style={styles.heading}>Create Account</Text>
             <Text style={styles.subheading}>Set up your reunItD parent account</Text>
           </View>
@@ -123,10 +124,13 @@ export default function RegisterScreen({ navigation }) {
             />
 
             <Text style={styles.label}>Password *</Text>
+            <Text style={styles.pwHint}>
+              At least 8 characters, with an uppercase letter, a lowercase letter, and a number.
+            </Text>
             <View style={styles.passwordContainer}>
               <TextInput
                 style={styles.passwordInput}
-                placeholder="Min. 8 characters"
+                placeholder="Choose a strong password"
                 placeholderTextColor="#9ca3af"
                 secureTextEntry={!showPassword}
                 value={form.password}
@@ -163,28 +167,6 @@ export default function RegisterScreen({ navigation }) {
               value={form.primaryPhone}
               onChangeText={(v) => setField('primaryPhone', v)}
               returnKeyType="next"
-            />
-
-            <Text style={styles.label}>Secondary Phone (optional)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="+1 555 987 6543"
-              placeholderTextColor="#9ca3af"
-              keyboardType="phone-pad"
-              value={form.secondaryPhone}
-              onChangeText={(v) => setField('secondaryPhone', v)}
-              returnKeyType="next"
-            />
-
-            <Text style={styles.label}>Emergency Note (optional)</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="e.g. Child has peanut allergy. Reward offered."
-              placeholderTextColor="#9ca3af"
-              multiline
-              numberOfLines={3}
-              value={form.emergencyNote}
-              onChangeText={(v) => setField('emergencyNote', v)}
             />
 
             <TouchableOpacity
@@ -257,9 +239,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: '#f9fafb',
   },
-  textArea: {
-    height: 90,
-    textAlignVertical: 'top',
+  pwHint: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginBottom: 6,
+    lineHeight: 16,
   },
   passwordContainer: {
     flexDirection: 'row',

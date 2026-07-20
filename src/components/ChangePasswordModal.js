@@ -39,8 +39,8 @@ export default function ChangePasswordModal({ visible, onClose, onChanged }) {
       setError('Enter your current password.');
       return;
     }
-    if (next.length < 8) {
-      setError('New password must be at least 8 characters.');
+    if (next.length < 8 || !/[a-z]/.test(next) || !/[A-Z]/.test(next) || !/\d/.test(next)) {
+      setError('New password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number.');
       return;
     }
     if (next !== confirm) {
@@ -81,7 +81,7 @@ export default function ChangePasswordModal({ visible, onClose, onChanged }) {
             autoFocus
           />
 
-          <Text style={styles.label}>New Password <Text style={styles.hint}>min. 8 characters</Text></Text>
+          <Text style={styles.label}>New Password <Text style={styles.hint}>min. 8 chars, with uppercase, lowercase & number</Text></Text>
           <TextInput
             style={styles.input}
             value={next}

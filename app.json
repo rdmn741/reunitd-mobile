@@ -21,6 +21,7 @@
       "bundleIdentifier": "com.reunitd.mobile",
       "buildNumber": "1",
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "reunItD uses location to provide scan geolocation data.",
         "NSCameraUsageDescription": "reunItD uses the camera to scan the QR code on your activation card.",
         "NSPhotoLibraryUsageDescription": "reunItD uses your photo library to add a child's photo to their profile.",

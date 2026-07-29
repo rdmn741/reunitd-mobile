@@ -19,6 +19,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.reunitd.mobile",
+      "buildNumber": "1",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "reunItD uses location to provide scan geolocation data.",
         "NSCameraUsageDescription": "reunItD uses the camera to scan the QR code on your activation card.",
@@ -34,6 +35,7 @@
         "backgroundColor": "#2563eb"
       },
       "package": "com.reunitd.mobile",
+      "versionCode": 1,
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",

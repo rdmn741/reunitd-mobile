@@ -4,6 +4,8 @@
     "slug": "reunitd-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
+    "privacy": "public",
+    "privacyPolicyUrl": "https://reunitd.com/privacy",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {

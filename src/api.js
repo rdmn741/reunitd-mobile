@@ -122,6 +122,41 @@ export async function changePassword(currentPassword, newPassword) {
   return response.data;
 }
 
+/**
+ * Permanently delete the signed-in account.
+ *
+ * Requires the account password, plus a fresh 2FA code when the account has
+ * two-factor enabled. The server cascades the deletion across every collection,
+ * cancels any Stripe subscription, factory-resets the tags, and destroys the
+ * account's encryption key — see the Privacy Policy, section 7.
+ *
+ * DELETE carries a body, so it goes in axios's `data` option.
+ */
+/**
+ * Email a fresh verification code for account deletion.
+ * Only needed when the account has two-factor enabled.
+ */
+export async function requestDeleteCode() {
+  const response = await api.post('/api/auth/request-delete-code');
+  return response.data;
+}
+
+export async function deleteAccount(password, code) {
+  const body = code ? { password, code } : { password };
+  const response = await api.delete('/api/auth/me', { data: body });
+  return response.data;
+}
+
+/**
+ * The exact consent texts the server will store if the guardian agrees.
+ * Rendered verbatim — never paraphrase these in the UI, or the stored record
+ * stops being evidence of what was actually shown.
+ */
+export async function fetchDisclaimers() {
+  const response = await api.get('/api/tags/disclaimers');
+  return response.data; // { version, texts }
+}
+
 export async function addChild(data) {
   const response = await api.post('/api/auth/children', data);
   return response.data; // { children: [...] }

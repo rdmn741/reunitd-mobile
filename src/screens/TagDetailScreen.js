@@ -59,7 +59,14 @@ function FinderPreview({ tag, parent, resolved }) {
   return (
     <View style={styles.previewCard}>
       <Text style={styles.previewEyebrow}>FINDER PREVIEW</Text>
-      <Text style={styles.previewSub}>What a stranger sees when they scan this tag</Text>
+      {/* Accuracy matters here: while Lost Mode is off the server sends a
+          finder no profile data at all, so calling this "what a stranger sees"
+          told guardians their child's details were exposed when they weren't. */}
+      <Text style={styles.previewSub}>
+        {tag.lostMode
+          ? 'What a finder sees right now — Lost Mode is active'
+          : 'What a finder would see if you turn Lost Mode on. Right now they see nothing.'}
+      </Text>
 
       <View style={styles.previewBody}>
         <View style={styles.previewSosBar}>
@@ -69,7 +76,10 @@ function FinderPreview({ tag, parent, resolved }) {
         </View>
 
         {!hasAny && (
-          <Text style={styles.previewEmpty}>No fields are visible yet. Enable at least one below.</Text>
+          <Text style={styles.previewEmpty}>
+            No fields enabled yet. Enable at least one below, so a finder has something
+            to go on if you ever turn Lost Mode on.
+          </Text>
         )}
 
         {vf.childName && resolved.childName ? (
@@ -342,8 +352,12 @@ export default function TagDetailScreen({ route, navigation }) {
     Alert.alert(
       newVal ? 'Activate Lost Mode' : 'Deactivate Lost Mode',
       newVal
-        ? 'This will display a LOST badge when your tag is scanned.'
-        : 'Mark your child as found. This will remove the LOST badge.',
+        ? 'Anyone who scans this tag will immediately see every field you have '
+          + 'enabled — including phone numbers, and the address or medical note if '
+          + 'you turned those on.\n\nUntil now they have seen nothing at all. You can '
+          + 'turn Lost Mode off again at any time.'
+        : 'Mark your child as found. Your tag goes back to showing a finder no '
+          + 'personal information at all.',
       [
         { text: 'Cancel', style: 'cancel' },
         {

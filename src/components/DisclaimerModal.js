@@ -1,44 +1,74 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
   Text,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { fetchDisclaimers } from '../api';
 
-const DISCLAIMER_TEXT = `IMPORTANT PRIVACY DISCLAIMER — PLEASE READ CAREFULLY
-
-By enabling this field on your reunItD profile, you consent to displaying this personal information to anyone who scans your child's NFC tag.
-
-1. PUBLIC DISCLOSURE
-The information you choose to display (such as phone numbers, home address, and emergency notes) will be visible to any person who scans the NFC tag attached to your child's clothing or belongings. This information is accessible without any login or verification from the scanner.
-
-2. RISKS OF DISCLOSURE
-Displaying personal contact information publicly carries inherent privacy risks, including but not limited to:
-• Unwanted contact from strangers
-• Potential misuse of your address or phone number
-• Exposure of sensitive household information
-
-3. YOUR RESPONSIBILITY
-You acknowledge that you have carefully considered the risks of making this information publicly visible. reunItD provides this feature as a tool for child safety and emergency contact purposes only.
-
-4. RECOMMENDED USE
-We recommend only displaying the minimum information necessary for a good samaritan to contact you in an emergency. Consider using a mobile phone number rather than a home address where possible.
-
-5. REUNITD LIABILITY
-reunItD is not responsible for any misuse of information you choose to display publicly via this service. By enabling this field, you accept full responsibility for the consequences of public disclosure.
-
-6. REVOCATION
-You may disable this field at any time from the Tag Settings screen. Disabling the field will immediately remove it from the public scan page.
-
-By checking the box below and tapping "I Agree," you confirm that you have read, understood, and accepted all terms above, and that you consent to displaying this information publicly.`;
+/**
+ * The consent text is fetched from the server — the same constants it stores in
+ * the audit log — and rendered verbatim.
+ *
+ * This modal previously hardcoded one generic text shown for every field, while
+ * the server recorded a different, field-specific agreement. A consent record is
+ * only evidence of what was actually put in front of the person, so displaying
+ * anything other than the stored text made those records worse than useless.
+ *
+ * Cached per app session; the texts change only when the server is redeployed.
+ */
+let _cachedTexts = null;
+let _cachedVersion = '';
 
 export default function DisclaimerModal({ visible, fieldName, onAgree, onCancel }) {
   const [checked, setChecked] = useState(false);
+  const [text, setText]       = useState('');
+  const [version, setVersion] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed]   = useState(false);
+
+  useEffect(() => {
+    if (!visible || !fieldName) return;
+    let cancelled = false;
+
+    (async () => {
+      setChecked(false);
+      setFailed(false);
+
+      if (_cachedTexts && _cachedTexts[fieldName]) {
+        setText(_cachedTexts[fieldName]);
+        setVersion(_cachedVersion);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const data = await fetchDisclaimers();
+        if (cancelled) return;
+        _cachedTexts   = data.texts || {};
+        _cachedVersion = data.version || '';
+        const t = _cachedTexts[fieldName];
+        if (t) {
+          setText(t);
+          setVersion(_cachedVersion);
+        } else {
+          setFailed(true);
+        }
+      } catch (e) {
+        if (!cancelled) setFailed(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [visible, fieldName]);
 
   function handleCancel() {
     setChecked(false);
@@ -46,7 +76,7 @@ export default function DisclaimerModal({ visible, fieldName, onAgree, onCancel 
   }
 
   function handleAgree() {
-    if (!checked) return;
+    if (!checked || !text) return;
     setChecked(false);
     onAgree();
   }
@@ -60,6 +90,8 @@ export default function DisclaimerModal({ visible, fieldName, onAgree, onCancel 
   };
 
   const displayName = fieldLabels[fieldName] || fieldName;
+  // Agreeing is only possible once the exact text is on screen.
+  const canAgree = checked && !!text && !loading && !failed;
 
   return (
     <Modal
@@ -78,20 +110,39 @@ export default function DisclaimerModal({ visible, fieldName, onAgree, onCancel 
           </View>
 
           <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator>
-            <Text style={styles.disclaimerText}>{DISCLAIMER_TEXT}</Text>
+            {loading ? (
+              <View style={styles.loadingBox}>
+                <ActivityIndicator color="#2563eb" />
+                <Text style={styles.loadingText}>Loading agreement…</Text>
+              </View>
+            ) : failed ? (
+              <Text style={styles.failedText}>
+                The agreement could not be loaded, so this field cannot be enabled right now.
+                Please check your connection and try again.
+              </Text>
+            ) : (
+              <Text style={styles.disclaimerText}>{text}</Text>
+            )}
           </ScrollView>
 
           <View style={styles.footer}>
+            {!!version && !failed && (
+              <Text style={styles.versionNote}>
+                Recorded on your account as {version}
+              </Text>
+            )}
+
             <TouchableOpacity
-              style={styles.checkboxRow}
-              onPress={() => setChecked((v) => !v)}
+              style={[styles.checkboxRow, (!text || failed) && styles.rowDisabled]}
+              onPress={() => { if (text && !failed) setChecked((v) => !v); }}
               activeOpacity={0.7}
+              disabled={!text || failed}
             >
               <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
                 {checked && <Ionicons name="checkmark" size={15} color="#fff" />}
               </View>
               <Text style={styles.checkboxLabel}>
-                I have read and understood the disclaimer
+                I have read and understood the agreement above
               </Text>
             </TouchableOpacity>
 
@@ -100,9 +151,9 @@ export default function DisclaimerModal({ visible, fieldName, onAgree, onCancel 
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.agreeButton, !checked && styles.agreeButtonDisabled]}
+                style={[styles.agreeButton, !canAgree && styles.agreeButtonDisabled]}
                 onPress={handleAgree}
-                disabled={!checked}
+                disabled={!canAgree}
               >
                 <Text style={styles.agreeButtonText}>I Agree</Text>
               </TouchableOpacity>
@@ -158,6 +209,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     color: '#374151',
+  },
+  loadingBox: {
+    paddingVertical: 34,
+    alignItems: 'center',
+    gap: 10,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  failedText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: '#b91c1c',
+    fontWeight: '600',
+    paddingVertical: 20,
+  },
+  versionNote: {
+    fontSize: 11,
+    color: '#6b7280',
+    marginBottom: 12,
+  },
+  rowDisabled: {
+    opacity: 0.45,
   },
   footer: {
     padding: 20,

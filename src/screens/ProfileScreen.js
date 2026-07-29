@@ -13,6 +13,7 @@ import {
   Switch,
   Image,
   Modal,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +28,9 @@ import {
 } from '../biometrics';
 import ChildFormModal from '../components/ChildFormModal';
 import ChangePasswordModal from '../components/ChangePasswordModal';
+import DeleteAccountModal from '../components/DeleteAccountModal';
+
+const PRIVACY_POLICY_URL = 'https://reunitd.com/privacy';
 
 const GENDER_ICON = { male: 'male', female: 'female', other: 'person' };
 
@@ -248,6 +252,32 @@ export default function ProfileScreen() {
   const [editingChild, setEditingChild] = useState(null);
   const [changePasswordVisible, setChangePasswordVisible] = useState(false);
   const [emailChange, setEmailChange] = useState(null); // { email } while OTP pending
+  const [deleteVisible, setDeleteVisible] = useState(false);
+
+  // The account is already gone server-side by the time this runs, so clear the
+  // local session too — leaving a stored token would just 401 on the next call.
+  async function handleAccountDeleted() {
+    setDeleteVisible(false);
+    Alert.alert(
+      'Account deleted',
+      'Your account and personal information have been deleted. Thank you for using reunItD.'
+    );
+    try {
+      await logout();
+    } catch (e) {
+      await logout();
+    }
+  }
+
+  async function openPrivacyPolicy() {
+    try {
+      const ok = await Linking.canOpenURL(PRIVACY_POLICY_URL);
+      if (ok) await Linking.openURL(PRIVACY_POLICY_URL);
+      else Alert.alert('Privacy Policy', PRIVACY_POLICY_URL);
+    } catch (e) {
+      Alert.alert('Privacy Policy', PRIVACY_POLICY_URL);
+    }
+  }
 
   function handlePasswordChanged() {
     setChangePasswordVisible(false);
@@ -453,11 +483,34 @@ export default function ProfileScreen() {
             </View>
           )}
 
+          {/* Legal */}
+          <TouchableOpacity style={styles.legalRow} onPress={openPrivacyPolicy}>
+            <Ionicons name="shield-checkmark-outline" size={18} color={colors.ink} />
+            <Text style={styles.legalRowText}>Privacy Policy</Text>
+            <Ionicons name="open-outline" size={16} color={colors.muted} />
+          </TouchableOpacity>
+
           {/* App info */}
           <View style={styles.appInfoCard}>
             <Text style={styles.appInfoTitle}>reunItD</Text>
             <Text style={styles.appInfoVersion}>Version 1.0.0</Text>
             <Text style={styles.appInfoTagline}>Keeping children safe with smart NFC tags.</Text>
+          </View>
+
+          {/* Danger zone — deleting an account must be reachable in-app
+              (App Store Review Guideline 5.1.1(v)). */}
+          <View style={styles.dangerZone}>
+            <Text style={styles.dangerZoneLabel}>Danger zone</Text>
+            <TouchableOpacity style={styles.deleteRow} onPress={() => setDeleteVisible(true)}>
+              <Ionicons name="trash-outline" size={18} color="#dc2626" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.deleteRowTitle}>Delete Account</Text>
+                <Text style={styles.deleteRowSub}>
+                  Permanently deletes your account, your children's profiles and your data.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#dc2626" />
+            </TouchableOpacity>
           </View>
 
           {/* Logout */}
@@ -486,6 +539,13 @@ export default function ProfileScreen() {
         visible={changePasswordVisible}
         onClose={() => setChangePasswordVisible(false)}
         onChanged={handlePasswordChanged}
+      />
+
+      <DeleteAccountModal
+        visible={deleteVisible}
+        twoFactorEnabled={!!(parent && parent.twoFactorEnabled)}
+        onClose={() => setDeleteVisible(false)}
+        onDeleted={handleAccountDeleted}
       />
 
       <VerifyEmailChangeModal
@@ -604,6 +664,40 @@ const styles = StyleSheet.create({
   biometricText: { flex: 1, marginRight: 12 },
   biometricTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
   biometricSub: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+
+  legalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  legalRowText: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.ink },
+
+  dangerZone: {
+    borderWidth: 1.5,
+    borderColor: '#fecaca',
+    backgroundColor: '#fef2f2',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
+  },
+  dangerZoneLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.06,
+    textTransform: 'uppercase',
+    color: '#b91c1c',
+    marginBottom: 10,
+  },
+  deleteRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  deleteRowTitle: { fontSize: 15, fontWeight: '700', color: '#b91c1c' },
+  deleteRowSub: { fontSize: 12, color: '#991b1b', marginTop: 2, lineHeight: 17 },
 
   logoutButton: {
     borderWidth: 1.5,

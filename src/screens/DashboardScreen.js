@@ -47,6 +47,17 @@ function StatsRow({ tags }) {
   );
 }
 
+// Pull an XXXX-XXXX activation code out of one OCR'd line (letters, digits,
+// !@#$). Falls back to a bare 8-char run for when OCR drops the dash.
+function extractActivationCode(lineText) {
+  const upper = String(lineText || '').toUpperCase().replace(/[^A-Z0-9!@#$-]/g, '');
+  const m = upper.match(/([A-Z0-9!@#$]{4})-([A-Z0-9!@#$]{4})/);
+  if (m) return `${m[1]}-${m[2]}`;
+  const bare = upper.replace(/-/g, '');
+  if (/^[A-Z0-9!@#$]{8}$/.test(bare)) return `${bare.slice(0, 4)}-${bare.slice(4)}`;
+  return null;
+}
+
 function ActivateModal({ visible, onClose, onSuccess }) {
   const [tagId, setTagId] = useState('');
   const [activationCode, setActivationCode] = useState('');
@@ -91,21 +102,37 @@ function ActivateModal({ visible, onClose, onSuccess }) {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.92, skipProcessing: true });
       const result = await TextRecognition.recognize(photo.uri);
 
-      // Collect all recognized text blocks
-      const allText = result.blocks.map(b => b.text).join(' ').toUpperCase();
+      // Match line-by-line so header/footer text on the card can't splice
+      // into a false code match (joining all blocks with spaces could).
+      const lines = result.blocks.flatMap(b =>
+        (b.lines && b.lines.length ? b.lines.map(l => l.text) : [b.text])
+      );
+      let candidate = null;
+      let rejectedRead = false;
+      for (const lineText of lines) {
+        const code = extractActivationCode(lineText);
+        if (!code) continue;
+        // Activation codes never contain I, O, 0 or 1 — a read with one is
+        // provably wrong (glare/blur), so ask for another shot instead of
+        // silently filling a bad code.
+        if (/[IO01]/.test(code)) { rejectedRead = true; continue; }
+        candidate = code;
+        break;
+      }
 
-      // Match activation code: 4 chars – 4 chars (letters, digits, !@#)
-      const codeMatch = allText.match(/[A-Z0-9!@#]{4}-[A-Z0-9!@#]{4}/);
       // Match Tag ID: exactly 8 uppercase alphanumeric chars as a word
-      const tagMatch  = allText.match(/\b[A-Z][A-Z0-9]{7}\b/);
+      const allText  = result.blocks.map(b => b.text).join(' ').toUpperCase();
+      const tagMatch = allText.match(/\b[A-Z][A-Z0-9]{7}\b/);
 
-      if (codeMatch) {
-        setActivationCode(codeMatch[0]);
-        if (tagMatch && tagMatch[0].replace('-', '') !== codeMatch[0].replace('-', '')) {
+      if (candidate) {
+        setActivationCode(candidate);
+        if (tagMatch && tagMatch[0] !== candidate.replace('-', '')) {
           setTagId(tagMatch[0]);
         }
         setShowScanner(false);
         setOcrHint('');
+      } else if (rejectedRead) {
+        setOcrHint('Blurry or glare on the code — hold steady and try again');
       } else {
         setOcrHint('Code not found — move closer and try again');
       }

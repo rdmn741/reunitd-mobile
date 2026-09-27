@@ -69,8 +69,8 @@ const PRODUCTS = [
 
 function ProductCard({ product }) {
   function handleOrder() {
-    Linking.openURL('https://reunitd.com/pricing').catch(() =>
-      Alert.alert('Error', 'Could not open the store. Try visiting reunitd.com/pricing in your browser.')
+    Linking.openURL('https://findally.us/pricing').catch(() =>
+      Alert.alert('Error', 'Could not open the store. Try visiting findally.us/pricing in your browser.')
     );
   }
 
@@ -146,7 +146,7 @@ export default function ShopScreen() {
         {/* FAQ link */}
         <TouchableOpacity
           style={styles.faqLink}
-          onPress={() => Linking.openURL('https://reunitd.com/faq')}
+          onPress={() => Linking.openURL('https://findally.us/faq')}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
             <Text style={styles.faqLinkText}>Have questions? Visit our FAQ</Text>

@@ -1,7 +1,7 @@
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 
-const BIOMETRIC_ENABLED_KEY = 'reunitd_biometric_enabled';
+const BIOMETRIC_ENABLED_KEY = 'findally_biometric_enabled';
 
 /** Check if the device has biometrics enrolled (Face ID / Touch ID / Fingerprint) */
 export async function isBiometricAvailable() {
@@ -38,7 +38,7 @@ export async function setBiometricEnabled(enabled) {
  * Prompt the user to authenticate with biometrics.
  * Returns true if authenticated, false if cancelled or failed.
  */
-export async function authenticateWithBiometrics(reason = 'Authenticate to open reunItD') {
+export async function authenticateWithBiometrics(reason = 'Authenticate to open Findally') {
   const result = await LocalAuthentication.authenticateAsync({
     promptMessage: reason,
     cancelLabel: 'Cancel',

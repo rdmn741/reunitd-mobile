@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Wordmark from '../components/Wordmark';
 import { colors, radii, shadow } from '../theme';
 
-const REMEMBERED_TOKEN_KEY = 'reunitd_remembered_token';
+const REMEMBERED_TOKEN_KEY = 'findally_remembered_token';
 
 export default function LoginScreen({ navigation }) {
   const { login, completeTwoFactor, completeEmailVerify, loginWithBiometric } = useAuth();

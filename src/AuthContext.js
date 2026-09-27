@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { getMe, login as apiLogin, verifyTwoFactor, verifyEmailCode, setTwoFactorEnabled, TOKEN_STORE_KEY, setUnauthorizedHandler } from './api';
 import { isBiometricEnabled, isBiometricAvailable, authenticateWithBiometrics } from './biometrics';
 
-const REMEMBERED_TOKEN_KEY = 'reunitd_remembered_token';
+const REMEMBERED_TOKEN_KEY = 'findally_remembered_token';
 
 const AuthContext = createContext(null);
 
@@ -42,7 +42,7 @@ export function AuthProvider({ children }) {
     const available = await isBiometricAvailable();
     if (!available) return false;
 
-    const authenticated = await authenticateWithBiometrics('Authenticate to open reunItD');
+    const authenticated = await authenticateWithBiometrics('Authenticate to open Findally');
     if (!authenticated) return false;
 
     const remembered = await SecureStore.getItemAsync(REMEMBERED_TOKEN_KEY);
@@ -72,7 +72,7 @@ export function AuthProvider({ children }) {
           const biometricOn = await isBiometricEnabled();
           const biometricAvailable = await isBiometricAvailable();
           if (biometricOn && biometricAvailable) {
-            const authenticated = await authenticateWithBiometrics('Authenticate to open reunItD');
+            const authenticated = await authenticateWithBiometrics('Authenticate to open Findally');
             if (!authenticated) {
               // User cancelled — clear session and show login
               await SecureStore.deleteItemAsync(TOKEN_STORE_KEY);

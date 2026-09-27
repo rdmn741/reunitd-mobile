@@ -127,7 +127,7 @@ export default function RegisterScreen({ navigation }) {
             <Wordmark size={30} style={{ marginBottom: 8 }} />
             <Text style={styles.heading}>{tempToken ? 'Verify your email' : 'Create Account'}</Text>
             <Text style={styles.subheading}>
-              {tempToken ? `Enter the 6-digit code we sent to ${form.email.trim()}` : 'Set up your reunItD parent account'}
+              {tempToken ? `Enter the 6-digit code we sent to ${form.email.trim()}` : 'Set up your Findally parent account'}
             </Text>
           </View>
 

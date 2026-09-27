@@ -1,4 +1,4 @@
-// reunItD mobile design tokens — single source of truth.
+// Findally mobile design tokens — single source of truth.
 // Minimal-modern: flat surfaces, one accent blue, soft shadows, no emojis.
 export const colors = {
   primary:      '#2563eb',

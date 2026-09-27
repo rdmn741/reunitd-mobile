@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "reunItD",
+    "name": "Findally",
     "slug": "reunitd-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "privacy": "public",
-    "privacyPolicyUrl": "https://reunitd.com/privacy",
+    "privacyPolicyUrl": "https://findally.us/privacy",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
@@ -18,13 +18,13 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.reunitd.mobile",
+      "bundleIdentifier": "us.findally.mobile",
       "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "reunItD uses location to provide scan geolocation data.",
-        "NSCameraUsageDescription": "reunItD uses the camera to scan the QR code on your activation card.",
-        "NSPhotoLibraryUsageDescription": "reunItD uses your photo library to add a child's photo to their profile.",
+        "NSLocationWhenInUseUsageDescription": "Findally uses location to provide scan geolocation data.",
+        "NSCameraUsageDescription": "Findally uses the camera to scan the QR code on your activation card.",
+        "NSPhotoLibraryUsageDescription": "Findally uses your photo library to add a child's photo to their profile.",
         "UIBackgroundModes": [
           "remote-notification"
         ]
@@ -35,7 +35,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#2563eb"
       },
-      "package": "com.reunitd.mobile",
+      "package": "us.findally.mobile",
       "versionCode": 1,
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
@@ -55,7 +55,7 @@
           "color": "#2563eb",
           "sounds": [],
           "androidMode": "default",
-          "androidCollapsedTitle": "reunItD Alert"
+          "androidCollapsedTitle": "Findally Alert"
         }
       ],
       "expo-secure-store",
@@ -63,7 +63,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "reunItD uses your photo library to add a child's photo to their profile."
+          "photosPermission": "Findally uses your photo library to add a child's photo to their profile."
         }
       ]
     ],

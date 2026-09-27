@@ -356,7 +356,7 @@ export default function DashboardScreen({ navigation }) {
       <View style={styles.headerBar}>
         <View>
           <Text style={styles.greeting}>Hello, {firstName}</Text>
-          <Text style={styles.headerSub}>Your reunItD Dashboard</Text>
+          <Text style={styles.headerSub}>Your Findally Dashboard</Text>
         </View>
         <TouchableOpacity
           style={styles.addButton}
@@ -399,7 +399,7 @@ export default function DashboardScreen({ navigation }) {
               <Ionicons name="pricetag-outline" size={44} color={colors.faint} />
               <Text style={styles.emptyTitle}>No Tags Yet</Text>
               <Text style={styles.emptyBody}>
-                Activate your first reunItD tag to start protecting your loved one.
+                Activate your first Findally tag to start protecting your loved one.
               </Text>
               <TouchableOpacity
                 style={styles.emptyButton}

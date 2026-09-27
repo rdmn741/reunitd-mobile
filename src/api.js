@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { API_BASE_URL } from './config';
 
-const TOKEN_KEY = 'reunitd_token';
+const TOKEN_KEY = 'findally_token';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

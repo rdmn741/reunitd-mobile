@@ -30,7 +30,7 @@ import ChildFormModal from '../components/ChildFormModal';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 import DeleteAccountModal from '../components/DeleteAccountModal';
 
-const PRIVACY_POLICY_URL = 'https://reunitd.com/privacy';
+const PRIVACY_POLICY_URL = 'https://findally.us/privacy';
 
 const GENDER_ICON = { male: 'male', female: 'female', other: 'person' };
 
@@ -260,7 +260,7 @@ export default function ProfileScreen() {
     setDeleteVisible(false);
     Alert.alert(
       'Account deleted',
-      'Your account and personal information have been deleted. Thank you for using reunItD.'
+      'Your account and personal information have been deleted. Thank you for using Findally.'
     );
     try {
       await logout();
@@ -314,7 +314,7 @@ export default function ProfileScreen() {
     Alert.alert(
       value ? `${biometricLabel} Enabled` : `${biometricLabel} Disabled`,
       value
-        ? `You will now be asked to authenticate with ${biometricLabel} each time you open reunItD.`
+        ? `You will now be asked to authenticate with ${biometricLabel} each time you open Findally.`
         : `${biometricLabel} lock has been turned off.`
     );
   }
@@ -492,7 +492,7 @@ export default function ProfileScreen() {
 
           {/* App info */}
           <View style={styles.appInfoCard}>
-            <Text style={styles.appInfoTitle}>reunItD</Text>
+            <Text style={styles.appInfoTitle}>Findally</Text>
             <Text style={styles.appInfoVersion}>Version 1.0.0</Text>
             <Text style={styles.appInfoTagline}>Keeping children safe with smart NFC tags.</Text>
           </View>

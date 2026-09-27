@@ -1,7 +1,7 @@
 # App Store & Google Play submission pack
 
 Everything here is drafted from the actual data model and the published privacy
-policy at <https://reunitd.com/privacy>. Where a declaration is a legal
+policy at <https://findally.us/privacy>. Where a declaration is a legal
 statement about the company, it is marked **CONFIRM** — read it before you
 submit it in your own name.
 
@@ -32,7 +32,7 @@ Asset sizes needed:
 
 **Category:** Utilities, or Lifestyle. *Secondary:* Health & Fitness.
 
-**Do not select the Kids Category.** reunItD is used by guardians — adults —
+**Do not select the Kids Category.** Findally is used by guardians — adults —
 not by children. The Kids Category imposes much stricter rules (no external
 links, heavy restrictions on data collection) and mis-categorising an app that
 merely *concerns* children is a common rejection. The app is *about* children;
@@ -46,7 +46,7 @@ questionnaire asks about violence, language and so on — all "none".
 ## 3. Apple — App Privacy answers
 
 For each: **Linked to the user? Yes.** **Used for tracking? No** for every
-single item. reunItD does not sell data, does not advertise, and has no
+single item. Findally does not sell data, does not advertise, and has no
 third-party ad or analytics SDK — so **App Tracking Transparency does not
 apply** and you should not add the prompt.
 
@@ -82,8 +82,8 @@ Mirrors the above. Additionally:
 
 - **Is all data encrypted in transit?** — **Yes** (HTTPS throughout)
 - **Can users request data deletion?** — **Yes**, both in-app (Profile →
-  Delete Account) and by email to support@reunitd.com
-- **Data deletion URL**: `https://reunitd.com/privacy` (section 7 and 9)
+  Delete Account) and by email to support@findally.us
+- **Data deletion URL**: `https://findally.us/privacy` (section 7 and 9)
 - **Does the app collect data from children?** — the account holder is an
   adult guardian; child information is entered *by* that adult. Answer the
   Families questions accordingly and do **not** opt into the Designed for
@@ -96,7 +96,7 @@ Mirrors the above. Additionally:
 `ITSAppUsesNonExemptEncryption: false` is now set in `app.json`.
 
 **CONFIRM:** this is the standard answer for an app that uses only HTTPS/TLS and
-the operating system's own keychain, which is what reunItD does — the app itself
+the operating system's own keychain, which is what Findally does — the app itself
 implements no custom cryptography. All the AES work happens server-side, outside
 the shipped binary. If that ever changes, revisit this.
 
@@ -108,7 +108,7 @@ A reviewer cannot tap a physical NFC patch, and the app needs an account. Give
 them both, in App Review Notes:
 
 ```
-reunItD is used by parents and guardians. The physical product is an iron-on
+Findally is used by parents and guardians. The physical product is an iron-on
 NFC patch; a reviewer cannot scan one, so we have provided a demo account with
 an activated tag and sample scan history.
 
@@ -120,7 +120,7 @@ This account is email-verified and has two-factor authentication switched off,
 so sign-in requires no emailed code.
 
 To see the finder experience — the page a stranger reaches when they tap a
-patch — open https://reunitd.com/demo in any browser. It shows the full
+patch — open https://findally.us/demo in any browser. It shows the full
 step-by-step flow with sample data.
 
 Please note: by default a scanned patch reveals NO personal information. The
@@ -134,7 +134,7 @@ Create that account with `scripts/createDemoAccount.js` in the web repo.
 
 ## 7. Listing copy — draft
 
-**App name:** reunItD
+**App name:** Findally
 **Subtitle (iOS, 30 chars):** `Tap-to-reunite NFC patches`
 **Short description (Android, 80 chars):**
 `Iron-on NFC patches that help a finder reach you if your child gets lost.`
@@ -145,7 +145,7 @@ Create that account with `scripts/createDemoAccount.js` in the web repo.
 **Description:**
 
 ```
-reunItD is an iron-on NFC patch for your child's clothing or backpack. If they
+Findally is an iron-on NFC patch for your child's clothing or backpack. If they
 ever get separated from you, anyone with a smartphone can tap the patch and
 reach you — no app to download, no account to create on their side.
 
@@ -172,12 +172,12 @@ Names, phone numbers, addresses and medical notes are encrypted with a key
 unique to your account. You can delete your account, and everything in it, at
 any time from the app.
 
-reunItD is operated by reunItD Inc. Privacy policy: https://reunitd.com/privacy
+Findally is operated by reunItD Inc. Privacy policy: https://findally.us/privacy
 ```
 
-**Support URL:** `https://reunitd.com/support`
-**Marketing URL:** `https://reunitd.com`
-**Privacy policy URL:** `https://reunitd.com/privacy`
+**Support URL:** `https://findally.us/support`
+**Marketing URL:** `https://findally.us`
+**Privacy policy URL:** `https://findally.us/privacy`
 
 ---
 

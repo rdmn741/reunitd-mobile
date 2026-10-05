@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
-import { getTags, activateTag, getErrorMessage } from '../api';
+import { getTags, activateTag, activatePack, getErrorMessage } from '../api';
 import { useAuth } from '../AuthContext';
 import TagCard from '../components/TagCard';
 
@@ -58,7 +58,37 @@ function extractActivationCode(lineText) {
   return null;
 }
 
+// Pack codes are 8 letters/digits like activation codes (never !@#$); the
+// first packs were printed as RNTD-XXXX-XXXX, which the 4-4 pattern above
+// would cut short. The insert card has no Tag IDs to confuse it with, so a
+// code sharing its line with a label ("Pack code: K7PQ4XWZ") is safe to pick.
+function extractPackCode(lineText) {
+  const raw = String(lineText || '').toUpperCase();
+  const upper = raw.replace(/[^A-Z0-9-]/g, '');
+  const legacy = upper.match(/RNTD-?([A-Z0-9]{4})-?([A-Z0-9]{4})/);
+  if (legacy) return `RNTD-${legacy[1]}-${legacy[2]}`;
+  const dashed = extractActivationCode(upper);
+  if (dashed) return dashed;
+  // Words beside a label must already look like a pack code, so 8-letter
+  // card text ("ACTIVATE", "FINDALLY") is skipped rather than read as a code.
+  for (const word of raw.split(/\s+/)) {
+    const w = word.replace(/[^A-Z0-9]/g, '');
+    const code = `${w.slice(0, 4)}-${w.slice(4)}`;
+    if (w.length === 8 && PACK_CODE_RE.test(code)) return code;
+  }
+  return null;
+}
+
+// The programmer draws pack codes from this alphabet only (no I, O, V, 0, 1,
+// 2, 5, 6, 8), so any other character in a read is glare or blur — e.g. an S
+// read as 5. Legacy RNTD- codes used a wider set and skip this check.
+const PACK_CODE_RE = /^[ABCDEFGHJKLMNPQRSTUWXYZ3479]{4}-[ABCDEFGHJKLMNPQRSTUWXYZ3479]{4}$/;
+
 function ActivateModal({ visible, onClose, onSuccess }) {
+  // 'pack' is the default: patches made in distribution mode only have a
+  // pack code. 'single' covers older patches with their own Tag ID + code.
+  const [mode, setMode] = useState('pack');
+  const [packCode, setPackCode] = useState('');
   const [tagId, setTagId] = useState('');
   const [activationCode, setActivationCode] = useState('');
   const [label, setLabel] = useState('');
@@ -70,6 +100,8 @@ function ActivateModal({ visible, onClose, onSuccess }) {
   const cameraRef = useRef(null);
 
   function reset() {
+    setMode('pack');
+    setPackCode('');
     setTagId('');
     setActivationCode('');
     setLabel('');
@@ -110,12 +142,13 @@ function ActivateModal({ visible, onClose, onSuccess }) {
       let candidate = null;
       let rejectedRead = false;
       for (const lineText of lines) {
-        const code = extractActivationCode(lineText);
+        const code = mode === 'pack' ? extractPackCode(lineText) : extractActivationCode(lineText);
         if (!code) continue;
-        // Activation codes never contain I, O, 0 or 1 — a read with one is
-        // provably wrong (glare/blur), so ask for another shot instead of
-        // silently filling a bad code.
-        if (/[IO01]/.test(code)) { rejectedRead = true; continue; }
+        // Activation and pack codes never contain I, O, 0 or 1 — a read with
+        // one is provably wrong (glare/blur), so ask for another shot instead
+        // of silently filling a bad code.
+        if (/[IO01]/.test(code.replace(/^RNTD-/, ''))) { rejectedRead = true; continue; }
+        if (mode === 'pack' && !code.startsWith('RNTD-') && !PACK_CODE_RE.test(code)) { rejectedRead = true; continue; }
         candidate = code;
         break;
       }
@@ -124,7 +157,11 @@ function ActivateModal({ visible, onClose, onSuccess }) {
       const allText  = result.blocks.map(b => b.text).join(' ').toUpperCase();
       const tagMatch = allText.match(/\b[A-Z][A-Z0-9]{7}\b/);
 
-      if (candidate) {
+      if (candidate && mode === 'pack') {
+        setPackCode(candidate);
+        setShowScanner(false);
+        setOcrHint('');
+      } else if (candidate) {
         setActivationCode(candidate);
         if (tagMatch && tagMatch[0] !== candidate.replace('-', '')) {
           setTagId(tagMatch[0]);
@@ -144,6 +181,27 @@ function ActivateModal({ visible, onClose, onSuccess }) {
   }
 
   async function handleActivate() {
+    if (mode === 'pack') {
+      const code = packCode.trim();
+      if (!code) {
+        Alert.alert('Missing Code', 'Enter the pack code from the card in your box.');
+        return;
+      }
+      setLoading(true);
+      try {
+        const data = await activatePack(code);
+        const n = (data.tags || []).length;
+        reset();
+        onSuccess();
+        Alert.alert('Pack Activated',
+          `${n} tag${n === 1 ? '' : 's'} added to your account. Open each one to name it and choose what finders see.`);
+      } catch (err) {
+        Alert.alert('Activation Failed', getErrorMessage(err));
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     const trimTagId = tagId.trim().toUpperCase();
     const trimCode  = activationCode.trim();
     if (!trimTagId || !trimCode) {
@@ -179,7 +237,7 @@ function ActivateModal({ visible, onClose, onSuccess }) {
               <TouchableOpacity onPress={() => setShowScanner(false)} style={styles.scannerCloseBtn}>
                 <Ionicons name="close" size={22} color="#fff" />
               </TouchableOpacity>
-              <Text style={styles.scannerTitle}>Read Activation Code</Text>
+              <Text style={styles.scannerTitle}>{mode === 'pack' ? 'Read Pack Code' : 'Read Activation Code'}</Text>
               <View style={{ width: 40 }} />
             </View>
 
@@ -197,12 +255,14 @@ function ActivateModal({ visible, onClose, onSuccess }) {
             {/* Bottom: hint + capture button */}
             <View style={styles.scannerBottom}>
               <Text style={styles.scannerHint}>
-                Frame the activation code, then tap Capture
+                Frame the {mode === 'pack' ? 'pack' : 'activation'} code, then tap Capture
               </Text>
               {ocrHint ? (
                 <Text style={styles.scannerOcrHint}>{ocrHint}</Text>
               ) : (
-                <Text style={styles.scannerSub}>From the card included in your package</Text>
+                <Text style={styles.scannerSub}>
+                  {mode === 'pack' ? 'From the insert card inside your box' : 'From the card included in your package'}
+                </Text>
               )}
               <TouchableOpacity
                 style={[styles.captureBtn, processing && styles.captureBtnDisabled]}
@@ -231,16 +291,32 @@ function ActivateModal({ visible, onClose, onSuccess }) {
         >
           <View style={styles.modalCard}>
             <View style={styles.modalDragBar} />
-            <Text style={styles.modalTitle}>Activate New Tag</Text>
+            <Text style={styles.modalTitle}>Activate Tags</Text>
+
+            <View style={styles.segRow}>
+              {[['pack', 'Pack code'], ['single', 'Tag ID + code']].map(([key, text]) => (
+                <TouchableOpacity
+                  key={key}
+                  style={[styles.segBtn, mode === key && styles.segBtnActive]}
+                  onPress={() => { setMode(key); setOcrHint(''); }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.segText, mode === key && styles.segTextActive]}>{text}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
             <Text style={styles.modalSubtitle}>
-              Scan the QR code from your activation card, or enter the details manually.
+              {mode === 'pack'
+                ? 'Use the code on the insert card inside your box — it activates every patch in the box at once.'
+                : 'For patches that came with their own Tag ID and activation code.'}
             </Text>
 
             {/* Scan button */}
             <TouchableOpacity style={styles.scanQrButton} onPress={openScanner} activeOpacity={0.85}>
               <Ionicons name="camera-outline" size={22} color={colors.primary} />
               <View>
-                <Text style={styles.scanQrLabel}>Scan Activation Code</Text>
+                <Text style={styles.scanQrLabel}>{mode === 'pack' ? 'Scan Pack Code' : 'Scan Activation Code'}</Text>
                 <Text style={styles.scanQrSub}>Camera reads the code from your card</Text>
               </View>
               <Text style={styles.scanQrArrow}>›</Text>
@@ -252,6 +328,22 @@ function ActivateModal({ visible, onClose, onSuccess }) {
               <View style={styles.orLine} />
             </View>
 
+            {mode === 'pack' ? (
+              <>
+                <Text style={styles.modalLabel}>Pack Code *</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="e.g. K7PQ-4XWZ"
+                  placeholderTextColor="#9ca3af"
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  value={packCode}
+                  onChangeText={(v) => setPackCode(v.toUpperCase())}
+                />
+                <Text style={styles.packHint}>You can name each tag once it's activated.</Text>
+              </>
+            ) : (
+            <>
             <Text style={styles.modalLabel}>Tag ID *</Text>
             <TextInput
               style={styles.modalInput}
@@ -266,7 +358,7 @@ function ActivateModal({ visible, onClose, onSuccess }) {
             <Text style={styles.modalLabel}>Activation Code *</Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="e.g. A2B3-C4D5"
+              placeholder="e.g. K7PQ-4XWZ"
               placeholderTextColor="#9ca3af"
               autoCapitalize="characters"
               autoCorrect={false}
@@ -282,6 +374,8 @@ function ActivateModal({ visible, onClose, onSuccess }) {
               value={label}
               onChangeText={setLabel}
             />
+            </>
+            )}
 
             <View style={styles.modalButtonRow}>
               <TouchableOpacity style={styles.modalCancelButton} onPress={handleClose}>
@@ -540,6 +634,12 @@ const styles = StyleSheet.create({
   },
   disabledButton: { opacity: 0.6 },
   modalActivateText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  segRow: { flexDirection: 'row', backgroundColor: '#eef2ff', borderRadius: 12, padding: 4, marginTop: 12, marginBottom: 4 },
+  segBtn: { flex: 1, paddingVertical: 9, borderRadius: 9, alignItems: 'center' },
+  segBtnActive: { backgroundColor: '#fff', shadowColor: '#0f172a', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  segText: { fontSize: 14, fontWeight: '600', color: '#64748b' },
+  segTextActive: { color: colors.primary, fontWeight: '700' },
+  packHint: { fontSize: 12, color: '#6b7280', marginTop: 6 },
 
   // QR scan button
   scanQrButton: {

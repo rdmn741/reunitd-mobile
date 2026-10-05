@@ -53,7 +53,7 @@ apply** and you should not add the prompt.
 | Data type | Collected | Purpose |
 |---|---|---|
 | **Contact Info → Name** | Yes | App Functionality |
-| **Contact Info → Email Address** | Yes | App Functionality |
+| **Contact Info → Email Address** | Yes | App Functionality, Developer's Advertising or Marketing (only if the parent taps "Email me when they're available" in the Shop tab) |
 | **Contact Info → Phone Number** | Yes | App Functionality |
 | **Contact Info → Physical Address** | Yes (optional) | App Functionality |
 | **Health & Fitness → Health** | Yes — the emergency/medical note | App Functionality |
@@ -69,10 +69,13 @@ Notes worth having ready for a reviewer:
 
 - **Health data**: the emergency/medical note is optional, entered by the
   guardian, and shown to a finder only when the guardian has enabled that field
-  *and* turned Lost Mode on. Declaring it is the honest call — allergies and
+  *and* turned Privacy Mode off. Declaring it is the honest call — allergies and
   conditions are health data.
 - **Location** is coarse and derived from the IP of whoever scans the tag. The
   NFC chip is passive: no battery, no GPS, no ability to report position.
+- **Camera** is used only to read the activation or pack code printed on the
+  card in the box. Text recognition runs on the phone (Google ML Kit,
+  on-device); the photo is never uploaded, so it is not "collected" data.
 
 ---
 
@@ -123,9 +126,12 @@ To see the finder experience — the page a stranger reaches when they tap a
 patch — open https://findally.us/demo in any browser. It shows the full
 step-by-step flow with sample data.
 
-Please note: by default a scanned patch reveals NO personal information. The
-guardian must turn on Lost Mode before any contact details are shown. This is
-the core privacy behaviour of the product.
+Please note: by default a scanned patch reveals NO personal information
+(Privacy Mode is on). The guardian must turn Privacy Mode off before any
+contact details are shown. This is the core privacy behaviour of the product.
+
+The Shop tab shows prices and links to https://findally.us/pricing for
+purchase; physical goods are bought on the website, not in the app.
 ```
 
 Create that account with `scripts/createDemoAccount.js` in the web repo.
@@ -152,16 +158,21 @@ reach you — no app to download, no account to create on their side.
 PRIVACY FIRST, BY DEFAULT
 A patch reveals nothing at all until you say so. If someone taps it, you are
 alerted immediately — but they see no name, no phone number, no address. You
-decide, from your phone, whether to turn on Lost Mode and reveal the contact
-details you have chosen to share.
+decide, from your phone, whether to turn Privacy Mode off and reveal the
+contact details you have chosen to share.
 
 YOU CHOOSE WHAT A FINDER SEES
 Per patch, you decide whether to show your child's name, a phone number, an
 address, or a medical note. Everything is off unless you turn it on.
 
 INSTANT ALERTS
-Get a push notification and an email the moment one of your patches is tapped,
-including the approximate location of the scan.
+Get a push notification the moment one of your patches is tapped, with the
+approximate area of the scan. If the finder says they're with your child, you
+get an urgent alert and an email too.
+
+ONE CODE PER BOX
+Activate every patch in a box at once with the pack code on the insert card —
+type it in or let the camera read it.
 
 NO BATTERY, NO GPS
 The patch is completely passive. It cannot track anyone and does nothing at all

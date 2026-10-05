@@ -59,13 +59,13 @@ function FinderPreview({ tag, parent, resolved }) {
   return (
     <View style={styles.previewCard}>
       <Text style={styles.previewEyebrow}>FINDER PREVIEW</Text>
-      {/* Accuracy matters here: while Lost Mode is off the server sends a
+      {/* Accuracy matters here: while Privacy Mode is on the server sends a
           finder no profile data at all, so calling this "what a stranger sees"
           told guardians their child's details were exposed when they weren't. */}
       <Text style={styles.previewSub}>
         {tag.lostMode
-          ? 'What a finder sees right now — Lost Mode is active'
-          : 'What a finder would see if you turn Lost Mode on. Right now they see nothing.'}
+          ? 'What a finder sees right now — Privacy Mode is off'
+          : 'What a finder would see with Privacy Mode off. Right now they get a privacy screen — they can alert you, but see none of these details.'}
       </Text>
 
       <View style={styles.previewBody}>
@@ -78,7 +78,7 @@ function FinderPreview({ tag, parent, resolved }) {
         {!hasAny && (
           <Text style={styles.previewEmpty}>
             No fields enabled yet. Enable at least one below, so a finder has something
-            to go on if you ever turn Lost Mode on.
+            to go on if you ever turn Privacy Mode off.
           </Text>
         )}
 
@@ -350,18 +350,18 @@ export default function TagDetailScreen({ route, navigation }) {
   async function handleLostModeToggle() {
     const newVal = !tag.lostMode;
     Alert.alert(
-      newVal ? 'Activate Lost Mode' : 'Deactivate Lost Mode',
+      newVal ? 'Turn Privacy Mode Off?' : 'Turn Privacy Mode On?',
       newVal
         ? 'Anyone who scans this tag will immediately see every field you have '
           + 'enabled — including phone numbers, and the address or medical note if '
-          + 'you turned those on.\n\nUntil now they have seen nothing at all. You can '
-          + 'turn Lost Mode off again at any time.'
-        : 'Mark your child as found. Your tag goes back to showing a finder no '
-          + 'personal information at all.',
+          + 'you turned those on.\n\nUntil now they have seen only a privacy screen. '
+          + 'You can turn Privacy Mode back on at any time.'
+        : 'Finders go back to a privacy screen. They can still alert you, but see '
+          + 'none of your personal information.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: newVal ? 'Activate' : 'Deactivate',
+          text: newVal ? 'Show My Info' : 'Hide My Info',
           style: newVal ? 'destructive' : 'default',
           onPress: async () => {
             setLostLoading(true);
@@ -500,15 +500,15 @@ export default function TagDetailScreen({ route, navigation }) {
             {isLost && (
               <View style={styles.lostBadge}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Ionicons name="alert-circle" size={13} color="#fff" />
-                  <Text style={styles.lostBadgeText}>LOST</Text>
+                  <Ionicons name="eye" size={13} color="#b45309" />
+                  <Text style={styles.lostBadgeText}>INFO VISIBLE</Text>
                 </View>
               </View>
             )}
           </View>
         </View>
 
-        {/* ── Lost Mode ── */}
+        {/* ── Privacy Mode ── */}
         <TouchableOpacity
           style={[styles.lostButton, isLost ? styles.lostButtonActive : styles.lostButtonInactive]}
           onPress={handleLostModeToggle}
@@ -517,13 +517,18 @@ export default function TagDetailScreen({ route, navigation }) {
           {lostLoading
             ? <ActivityIndicator color="#fff" />
             : <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <Ionicons name={isLost ? 'checkmark-circle' : 'alert-circle'} size={19} color="#fff" />
+                <Ionicons name={isLost ? 'lock-closed' : 'eye'} size={19} color="#fff" />
                 <Text style={styles.lostButtonText}>
-                  {isLost ? 'Child Found — Deactivate Lost Mode' : 'My Child Is Lost — Activate Now'}
+                  {isLost ? 'Turn Privacy Mode On — Hide My Info' : 'Turn Privacy Mode Off — Show My Info'}
                 </Text>
               </View>
           }
         </TouchableOpacity>
+        <Text style={styles.lostCaption}>
+          {isLost
+            ? 'Finders can see the fields you have turned on below.'
+            : 'Do this right away if your child is missing — or before a busy day out.'}
+        </Text>
 
         {/* ── Finder Preview ── */}
         <FinderPreview tag={tag} parent={parent} resolved={resolved} />
@@ -697,17 +702,18 @@ const styles = StyleSheet.create({
   statusBadgeText: { fontSize: 12, fontWeight: '700' },
   statusActiveText: { color: '#16a34a' },
   statusInactiveText: { color: '#9ca3af' },
-  lostBadge: { backgroundColor: '#fee2e2', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
-  lostBadgeText: { fontSize: 12, fontWeight: '700', color: '#dc2626' },
+  lostBadge: { backgroundColor: '#fef3c7', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
+  lostBadgeText: { fontSize: 12, fontWeight: '700', color: '#b45309' },
 
-  // Lost button
+  // Privacy Mode button (lostMode true = Privacy Mode off = info visible)
   lostButton: {
     borderRadius: 14, paddingVertical: 18, alignItems: 'center', marginBottom: 16,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.14, shadowRadius: 6, elevation: 3,
   },
-  lostButtonInactive: { backgroundColor: '#dc2626' },
+  lostButtonInactive: { backgroundColor: '#b45309' },
   lostButtonActive: { backgroundColor: '#16a34a' },
   lostButtonText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  lostCaption: { fontSize: 12, color: '#6b7280', textAlign: 'center', marginTop: -8, marginBottom: 16 },
 
   // Assigned-child row
   assignRow: {

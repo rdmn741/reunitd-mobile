@@ -23,8 +23,9 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "Findally uses location to provide scan geolocation data.",
-        "NSCameraUsageDescription": "Findally uses the camera to scan the QR code on your activation card.",
+        "NSCameraUsageDescription": "Findally uses the camera to read the activation or pack code printed on the card that comes with your patches.",
         "NSPhotoLibraryUsageDescription": "Findally uses your photo library to add a child's photo to their profile.",
+        "NSFaceIDUsageDescription": "Findally uses Face ID to unlock the app, so only you can open your family's details.",
         "UIBackgroundModes": [
           "remote-notification"
         ]
@@ -59,11 +60,18 @@
         }
       ],
       "expo-secure-store",
-      "expo-camera",
+      [
+        "expo-camera",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Findally uses your photo library to add a child's photo to their profile."
+          "photosPermission": "Findally uses your photo library to add a child's photo to their profile.",
+          "microphonePermission": false
         }
       ]
     ],

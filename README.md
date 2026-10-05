@@ -1,129 +1,103 @@
-# SafeTag Mobile
+# Findally Mobile
 
-React Native + Expo mobile app for the SafeTag NFC child safety tag system.
+React Native + Expo (SDK 54) app for Findally — iron-on NFC safety patches.
+Parents activate their patches, choose what a finder sees (Privacy Mode), and
+get an alert when someone taps a patch.
 
 ## Prerequisites
 
-- Node.js 18+
-- npm or yarn
-- Expo CLI: `npm install -g expo-cli`
-- Expo Go app on your iOS or Android device (for development)
+- Node.js 20+
+- An Expo account with access to the `robert741` EAS project
+- For iOS builds on this Mac: Xcode (or build in the cloud with EAS)
+
+The app uses native modules (camera + ML Kit text recognition for reading
+activation and pack codes), so it does **not** run in Expo Go. Use a
+development build instead.
 
 ## Setup
 
-### 1. Install dependencies
-
 ```bash
-cd safetag-mobile
 npm install
 ```
 
-### 2. Configure the API URL
+### API URL
 
-Open `src/config.js` and set your backend server address:
-
-```js
-export const API_BASE_URL = 'http://YOUR_SERVER_IP:3000';
-```
-
-**Important:** Use your machine's local IP address (e.g. `192.168.1.109`), NOT `localhost` — React Native runs on a physical device and cannot resolve `localhost` to your development machine.
-
-To find your local IP:
-- **Mac:** `ifconfig | grep "inet " | grep -v 127.0.0.1`
-- **Windows:** `ipconfig` → look for "IPv4 Address"
-- **Linux:** `hostname -I`
-
-### 3. Asset placeholders
-
-The `app.json` references some image assets. For development you can generate simple placeholder images:
-
-```bash
-# Install the expo asset generator or use any 1024x1024 PNG as icon.png
-# The app will run fine without them in Expo Go
-```
-
-Or just remove the icon/splash fields from `app.json` for initial testing.
-
-### 4. Start the development server
-
-```bash
-npx expo start
-```
-
-Then:
-- Scan the QR code with **Expo Go** (Android) or the Camera app (iOS)
-- Press `a` to open on Android emulator
-- Press `i` to open on iOS simulator (Mac only)
-
-## Push Notifications
-
-Push notifications require a **physical device** (not simulator/emulator).
-
-The app will:
-1. Request notification permission on first login
-2. Register the Expo push token with your backend
-3. Display incoming scan alerts when the app is open or in background
-
-## Project Structure
-
-```
-safetag-mobile/
-├── App.js                  # Root component, navigation setup, push notification setup
-├── app.json                # Expo configuration
-├── babel.config.js         # Babel config
-├── package.json            # Dependencies
-└── src/
-    ├── config.js           # API base URL (change this!)
-    ├── api.js              # All backend API calls (axios)
-    ├── AuthContext.js      # Auth state management (login/logout/session restore)
-    ├── notifications.js    # Expo push notification helpers
-    ├── screens/
-    │   ├── LoginScreen.js
-    │   ├── RegisterScreen.js
-    │   ├── ForgotPasswordScreen.js
-    │   ├── DashboardScreen.js      # Tag list + stats + activate modal
-    │   ├── TagDetailScreen.js      # Lost mode, field visibility, label
-    │   ├── ScanHistoryScreen.js    # Scan log for one tag
-    │   ├── NotificationsScreen.js  # All scans across all tags
-    │   └── ProfileScreen.js        # Account info + edit + logout
-    └── components/
-        ├── DisclaimerModal.js  # Privacy disclaimer before enabling sensitive fields
-        └── TagCard.js          # Tag list item card
-```
-
-## Key Design Decisions
-
-- **JWT** stored in `expo-secure-store` (encrypted on device)
-- **401 responses** automatically clear the token and redirect to Login
-- **Sensitive fields** (phones, address, emergency note) require accepting a privacy disclaimer before being enabled on a tag's public scan page
-- **Push token** is registered on login and unregistered on logout
-- All screens have pull-to-refresh and loading states
-
-## Building for Production
-
-```bash
-# Install EAS CLI
-npm install -g eas-cli
-
-# Log in to Expo
-eas login
-
-# Configure your project (first time)
-eas build:configure
-
-# Build for Android
-eas build --platform android
-
-# Build for iOS
-eas build --platform ios
-```
-
-Update the `projectId` in `app.json` → `extra.eas.projectId` with your EAS project ID.
-
-## Changing the API URL for Production
-
-In `src/config.js`:
+`src/config.js` points at production:
 
 ```js
-export const API_BASE_URL = 'https://api.yourdomain.com';
+export const API_BASE_URL = 'https://findally.us';
 ```
+
+To test against a local backend, use your machine's LAN IP (not `localhost` —
+the app runs on a device or simulator that can't resolve it), e.g.
+`http://192.168.1.109:3000`. Don't commit that change.
+
+### Run a development build
+
+```bash
+# iOS simulator build in the cloud (no Xcode needed), then install it
+eas build --profile development --platform ios
+
+# Or locally, with Xcode installed
+npx expo run:ios
+
+# Then start the bundler
+npx expo start --dev-client
+```
+
+## Push notifications
+
+Push needs a physical device. On login the app asks for permission and
+registers its Expo push token with the backend; it unregisters on logout.
+Tap alerts open a quick-action sheet where the parent can turn Privacy Mode
+off or change which details a finder sees.
+
+## Project structure
+
+```
+App.js                    # Navigation, auth gate, push notification wiring
+app.json                  # Expo config (name, bundle IDs, icons, plugins)
+eas.json                  # EAS build profiles: development, preview, production
+STORE_SUBMISSION.md       # App Store / Play submission pack
+assets/                   # App icon, adaptive icon, splash, notification icon
+src/
+  config.js               # API base URL
+  api.js                  # Every backend call (axios + JWT from SecureStore)
+  AuthContext.js          # Session restore, login/logout, 2FA, email verification
+  notifications.js        # Expo push helpers
+  theme.js                # Design tokens
+  screens/
+    DashboardScreen.js    # Tag list, stats, activation (pack code or Tag ID + code)
+    TagDetailScreen.js    # Privacy Mode, finder preview, visible fields, label
+    ScanHistoryScreen.js  # Tap log for one tag
+    NotificationsScreen.js
+    ShopScreen.js         # Live prices/stock from /api/shop/catalog; waitlist
+    ProfileScreen.js      # Account, children, security, help & legal links
+    LoginScreen.js, RegisterScreen.js, ForgotPasswordScreen.js
+  components/
+    QuickActionSheet.js   # Shown when a finder taps a patch
+    DisclaimerModal.js    # Consent before showing a sensitive field
+    TagCard.js, AssignChildModal.js, ChildFormModal.js, ...
+```
+
+## Key design decisions
+
+- **JWT** lives in `expo-secure-store`; a 401 clears it and returns to Login.
+- **Privacy Mode** is on by default (`lostMode: false` on the server). Turning
+  it off (`lostMode: true`) shows a finder the fields the parent enabled.
+- **Sensitive fields** (photo, phones, address, emergency note) need the
+  consent text from `/api/tags/disclaimers`, rendered verbatim.
+- **Prices are never hard-coded for checkout** — the Shop screen reads the same
+  tier list the web checkout charges, and purchases happen on findally.us.
+
+## Building for release
+
+```bash
+eas build --profile production --platform ios
+eas build --profile production --platform android
+```
+
+See `STORE_SUBMISSION.md` for listing copy, privacy answers, and review notes.
+
+The EAS slug is still `reunitd-mobile`: the build project is linked to it, and
+renaming the slug means creating a new EAS project. Users never see the slug.

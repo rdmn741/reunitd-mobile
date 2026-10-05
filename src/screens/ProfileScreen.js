@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { colors } from '../theme';
 import { useAuth } from '../AuthContext';
 import { updateMe, confirmEmailChange, resendEmailChange, getErrorMessage } from '../api';
@@ -30,7 +31,13 @@ import ChildFormModal from '../components/ChildFormModal';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 import DeleteAccountModal from '../components/DeleteAccountModal';
 
-const PRIVACY_POLICY_URL = 'https://findally.us/privacy';
+const HELP_LINKS = [
+  { icon: 'help-buoy-outline',           label: 'Help Center',        url: 'https://findally.us/help' },
+  { icon: 'chatbubble-ellipses-outline', label: 'Contact Support',    url: 'https://findally.us/support' },
+  { icon: 'refresh-circle-outline',      label: 'Warranty & Returns', url: 'https://findally.us/warranty' },
+  { icon: 'document-text-outline',       label: 'Terms of Service',   url: 'https://findally.us/terms' },
+  { icon: 'shield-checkmark-outline',    label: 'Privacy Policy',     url: 'https://findally.us/privacy' },
+];
 
 const GENDER_ICON = { male: 'male', female: 'female', other: 'person' };
 
@@ -269,13 +276,13 @@ export default function ProfileScreen() {
     }
   }
 
-  async function openPrivacyPolicy() {
+  async function openLink(label, url) {
     try {
-      const ok = await Linking.canOpenURL(PRIVACY_POLICY_URL);
-      if (ok) await Linking.openURL(PRIVACY_POLICY_URL);
-      else Alert.alert('Privacy Policy', PRIVACY_POLICY_URL);
+      const ok = await Linking.canOpenURL(url);
+      if (ok) await Linking.openURL(url);
+      else Alert.alert(label, url);
     } catch (e) {
-      Alert.alert('Privacy Policy', PRIVACY_POLICY_URL);
+      Alert.alert(label, url);
     }
   }
 
@@ -483,18 +490,28 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          {/* Legal */}
-          <TouchableOpacity style={styles.legalRow} onPress={openPrivacyPolicy}>
-            <Ionicons name="shield-checkmark-outline" size={18} color={colors.ink} />
-            <Text style={styles.legalRowText}>Privacy Policy</Text>
-            <Ionicons name="open-outline" size={16} color={colors.muted} />
-          </TouchableOpacity>
+          {/* Help & legal */}
+          <View style={styles.linkCard}>
+            {HELP_LINKS.map((l, i) => (
+              <TouchableOpacity
+                key={l.url}
+                style={[styles.linkRow, i > 0 && styles.linkRowBorder]}
+                onPress={() => openLink(l.label, l.url)}
+              >
+                <Ionicons name={l.icon} size={18} color={colors.ink} />
+                <Text style={styles.legalRowText}>{l.label}</Text>
+                <Ionicons name="open-outline" size={16} color={colors.muted} />
+              </TouchableOpacity>
+            ))}
+          </View>
 
           {/* App info */}
           <View style={styles.appInfoCard}>
             <Text style={styles.appInfoTitle}>Findally</Text>
-            <Text style={styles.appInfoVersion}>Version 1.0.0</Text>
-            <Text style={styles.appInfoTagline}>Keeping children safe with smart NFC tags.</Text>
+            <Text style={styles.appInfoVersion}>Version {Constants.expoConfig?.version || '1.0.0'}</Text>
+            <Text style={styles.appInfoTagline}>
+              Iron-on NFC patches that help lost children and loved ones reach their families.
+            </Text>
           </View>
 
           {/* Danger zone — deleting an account must be reachable in-app
@@ -665,18 +682,22 @@ const styles = StyleSheet.create({
   biometricTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
   biometricSub: { fontSize: 12, color: '#6b7280', marginTop: 2 },
 
-  legalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+  linkCard: {
     backgroundColor: '#fff',
     borderRadius: 14,
-    paddingVertical: 15,
-    paddingHorizontal: 16,
     marginBottom: 14,
     borderWidth: 1,
     borderColor: '#e5e7eb',
+    overflow: 'hidden',
   },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+  },
+  linkRowBorder: { borderTopWidth: 1, borderTopColor: '#f1f5f9' },
   legalRowText: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.ink },
 
   dangerZone: {

@@ -51,6 +51,8 @@ export function getErrorMessage(error) {
     if (typeof data === 'string') return data;
     if (data.message) return data.message;
     if (data.error) return data.error;
+    // express-validator failures: { errors: [{ msg }] }
+    if (Array.isArray(data.errors) && data.errors[0] && data.errors[0].msg) return data.errors[0].msg;
   }
   if (error.message === 'Network Error') {
     return 'Unable to reach the server. Check your network connection.';
@@ -204,6 +206,28 @@ export async function activateTag(tagId, activationCode, label) {
   if (label) payload.label = label;
   const response = await api.post('/api/tags/activate', payload);
   return response.data;
+}
+
+// One code on the box's insert card activates every patch in it. Patches made
+// in distribution mode have no per-patch code, so this is the usual path.
+export async function activatePack(packCode) {
+  const response = await api.post('/api/tags/activate-pack', { packCode });
+  return response.data; // { message, tags: [{ tagId, status }] }
+}
+
+// ─── Shop ────────────────────────────────────────────────────────────────────
+
+// Prices, pack sizes, and stock from the same list checkout charges.
+export async function getShopCatalog() {
+  const response = await api.get('/api/shop/catalog');
+  return response.data; // { currency, tiers: [...], designs: [...], shipping: {...} }
+}
+
+// Same list the website's "email me when they're available" form feeds. The
+// server sends one confirmation email (with an unsubscribe link) per address.
+export async function joinWaitlist(email, lang) {
+  const response = await api.post('/api/waitlist', { email, lang, source: 'mobile-app' });
+  return response.data; // { ok: true }
 }
 
 export async function updateTag(tagId, data) {

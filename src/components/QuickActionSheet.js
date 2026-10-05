@@ -27,7 +27,7 @@ const FIELDS = [
 
 /**
  * Bottom-sheet quick actions shown when a finder scans a guardian's tag.
- * Lets the guardian activate Lost Mode and toggle which info is visible —
+ * Lets the guardian turn Privacy Mode off and toggle which info is visible —
  * without digging into the full tag detail screen.
  */
 export default function QuickActionSheet({ visible, tagId, scanInfo, onClose, onOpenDetails }) {
@@ -126,12 +126,12 @@ export default function QuickActionSheet({ visible, tagId, scanInfo, onClose, on
                 activeOpacity={0.85}
               >
                 {lostBusy ? (
-                  <ActivityIndicator color={tag.lostMode ? '#b91c1c' : '#fff'} />
+                  <ActivityIndicator color={tag.lostMode ? '#b45309' : '#fff'} />
                 ) : (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Ionicons name="alert-circle" size={18} color={tag.lostMode ? '#b91c1c' : '#fff'} />
+                    <Ionicons name={tag.lostMode ? 'lock-closed' : 'eye'} size={18} color={tag.lostMode ? '#b45309' : '#fff'} />
                     <Text style={[styles.lostBtnText, tag.lostMode && styles.lostOnText]}>
-                      {tag.lostMode ? 'Lost Mode is ON — tap to turn off' : 'Activate Lost Mode'}
+                      {tag.lostMode ? 'Info visible — tap to hide it again' : 'Turn Privacy Mode Off — Show My Info'}
                     </Text>
                   </View>
                 )}
@@ -214,10 +214,10 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 13, color: '#6b7280', textAlign: 'center', marginTop: 4, marginBottom: 18 },
   err: { fontSize: 14, color: '#6b7280', textAlign: 'center', marginVertical: 28 },
   lostBtn: { borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginBottom: 20 },
-  lostOff: { backgroundColor: '#dc2626' },
-  lostOn: { backgroundColor: '#fef2f2', borderWidth: 1.5, borderColor: '#fca5a5' },
+  lostOff: { backgroundColor: '#b45309' },
+  lostOn: { backgroundColor: '#fffbeb', borderWidth: 1.5, borderColor: '#fcd34d' },
   lostBtnText: { fontSize: 16, fontWeight: '800', color: '#fff' },
-  lostOnText: { color: '#b91c1c' },
+  lostOnText: { color: '#b45309' },
   sectionLabel: {
     fontSize: 12,
     fontWeight: '700',

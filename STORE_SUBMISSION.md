@@ -68,8 +68,8 @@ apply** and you should not add the prompt.
 Notes worth having ready for a reviewer:
 
 - **Health data**: the emergency/medical note is optional, entered by the
-  guardian, and shown to a finder only when the guardian has enabled that field
-  *and* turned Privacy Mode off. Declaring it is the honest call — allergies and
+  guardian, and shown to a finder only when the guardian has enabled that field,
+  accepted its agreement, *and* turned Privacy Mode off. Declaring it is the honest call — allergies and
   conditions are health data.
 - **Location** is coarse and derived from the IP of whoever scans the tag. The
   NFC chip is passive: no battery, no GPS, no ability to report position.
@@ -129,6 +129,10 @@ step-by-step flow with sample data.
 Please note: by default a scanned patch reveals NO personal information
 (Privacy Mode is on). The guardian must turn Privacy Mode off before any
 contact details are shown. This is the core privacy behaviour of the product.
+
+The first time Privacy Mode is turned off on a tag, the app shows the
+agreement for each detail a finder would see (name and phone numbers, child's
+name, emergency note). After that it is a single confirmation.
 
 The Shop tab shows prices and links to https://findally.us/pricing for
 purchase; physical goods are bought on the website, not in the app.

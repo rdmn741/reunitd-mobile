@@ -235,17 +235,31 @@ export async function updateTag(tagId, data) {
   return response.data;
 }
 
-export async function setLostMode(tagId, lostMode) {
-  const response = await api.put(`/api/tags/${tagId}/lost-mode`, { lostMode });
-  return response.data;
+// lostMode true = Privacy Mode OFF. `agree` is { field: version } for the
+// agreements just accepted (see src/consent.js and agreementRequired below).
+export async function setLostMode(tagId, lostMode, agree) {
+  const payload = { lostMode };
+  if (agree && Object.keys(agree).length) payload.agree = agree;
+  const response = await api.put(`/api/tags/${tagId}/lost-mode`, payload);
+  return response.data; // { message, lostMode, consents }
 }
 
-export async function updateTagSettings(tagId, visibleFields, emergencyNote) {
+export async function updateTagSettings(tagId, visibleFields, emergencyNote, agree) {
   const payload = {};
   if (visibleFields !== undefined) payload.visibleFields = visibleFields;
   if (emergencyNote !== undefined) payload.emergencyNote = emergencyNote;
+  if (agree && Object.keys(agree).length) payload.agree = agree;
   const response = await api.put(`/api/tags/${tagId}/settings`, payload);
-  return response.data;
+  return response.data; // { message, visibleFields, consents }
+}
+
+// The server refuses a change that would show a finder a detail with no
+// agreement on file: 409 { code: 'AGREEMENT_REQUIRED', fields, version }.
+// Returns { fields, version } for that case, null for any other error.
+export function agreementRequired(error) {
+  const r = error && error.response;
+  if (!r || r.status !== 409 || !r.data || r.data.code !== 'AGREEMENT_REQUIRED') return null;
+  return { fields: r.data.fields || [], version: r.data.version || '' };
 }
 
 export async function getTagScans(tagId) {

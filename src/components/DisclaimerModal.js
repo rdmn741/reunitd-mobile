@@ -26,7 +26,29 @@ import { fetchDisclaimers } from '../api';
 let _cachedTexts = null;
 let _cachedVersion = '';
 
-export default function DisclaimerModal({ visible, fieldName, onAgree, onCancel }) {
+// Call when the server reports a newer agreement version, so the next modal
+// fetches (and shows) the current wording instead of the cached one.
+export function invalidateDisclaimerCache() {
+  _cachedTexts = null;
+  _cachedVersion = '';
+}
+
+// The server names the agreement version it expects (409 AGREEMENT_REQUIRED);
+// drop the cached texts if they're a different version.
+export function syncDisclaimerVersion(version) {
+  if (version && version !== _cachedVersion) invalidateDisclaimerCache();
+}
+
+/**
+ * @param {'enable'|'privacyOff'} [mode] Turning a detail on, or turning Privacy
+ *        Mode off for the first time on this tag
+ * @param {String} [step]       e.g. "2 of 3" when several agreements are needed
+ * @param {String} [agreeLabel] Button text (default "I Agree")
+ * @param {Function} onAgree    Called with the agreement version that was shown
+ */
+export default function DisclaimerModal({
+  visible, fieldName, onAgree, onCancel, mode = 'enable', step = null, agreeLabel = 'I Agree',
+}) {
   const [checked, setChecked] = useState(false);
   const [text, setText]       = useState('');
   const [version, setVersion] = useState('');
@@ -78,11 +100,11 @@ export default function DisclaimerModal({ visible, fieldName, onAgree, onCancel 
   function handleAgree() {
     if (!checked || !text) return;
     setChecked(false);
-    onAgree();
+    onAgree(version);
   }
 
   const fieldLabels = {
-    phones: 'Phone Numbers',
+    phones: mode === 'privacyOff' ? 'Your Name & Phone Numbers' : 'Phone Numbers',
     address: 'Home Address',
     emergencyNote: 'Emergency Note',
     childName: "Child's Name",
@@ -103,9 +125,19 @@ export default function DisclaimerModal({ visible, fieldName, onAgree, onCancel 
       <SafeAreaView style={styles.overlay}>
         <View style={styles.container}>
           <View style={styles.header}>
-            <Text style={styles.title}>Privacy Disclaimer</Text>
+            <Text style={styles.title}>Visibility Agreement</Text>
+            {mode === 'privacyOff' ? (
+              <Text style={styles.stepText}>
+                Turning Privacy Mode off{step ? ` · Agreement ${step}` : ''}
+              </Text>
+            ) : null}
             <Text style={styles.subtitle}>
-              You are about to enable: <Text style={styles.fieldName}>{displayName}</Text>
+              {mode === 'privacyOff' ? 'A finder will see: ' : 'You are turning on: '}
+              <Text style={styles.fieldName}>{displayName}</Text>
+            </Text>
+            <Text style={styles.onceNote}>
+              You accept this once for this tag. After that, this detail and Privacy Mode
+              switch on and off freely.
             </Text>
           </View>
 
@@ -155,7 +187,7 @@ export default function DisclaimerModal({ visible, fieldName, onAgree, onCancel 
                 onPress={handleAgree}
                 disabled={!canAgree}
               >
-                <Text style={styles.agreeButtonText}>I Agree</Text>
+                <Text style={styles.agreeButtonText}>{agreeLabel}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -197,6 +229,18 @@ const styles = StyleSheet.create({
   fieldName: {
     fontWeight: '700',
     color: '#2563eb',
+  },
+  stepText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#b45309',
+    marginBottom: 6,
+  },
+  onceNote: {
+    fontSize: 12,
+    color: '#6b7280',
+    lineHeight: 17,
+    marginTop: 8,
   },
   scrollArea: {
     minHeight: 200,

@@ -15,20 +15,21 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePreventScreenCapture } from 'expo-screen-capture';
-import { setLostMode, updateTag, updateTagSettings, deleteTag, updateMe, getErrorMessage } from '../api';
+import { updateTag, updateTagSettings, deleteTag, updateMe, getErrorMessage, agreementRequired } from '../api';
 import { useAuth } from '../AuthContext';
-import DisclaimerModal from '../components/DisclaimerModal';
+import DisclaimerModal, { syncDisclaimerVersion } from '../components/DisclaimerModal';
+import usePrivacySwitch from '../usePrivacySwitch';
+import { needsConsentToEnable } from '../consent';
 import PasswordConfirmModal from '../components/PasswordConfirmModal';
 import ChildFormModal from '../components/ChildFormModal';
 import AssignChildModal from '../components/AssignChildModal';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
 
-const SENSITIVE_FIELDS = ['phones', 'address', 'emergencyNote', 'photo'];
 const GENDER_ICON = { male: 'male', female: 'female', other: 'person' };
 
 const FIELD_CONFIG = [
-  { key: 'childName',     label: "Child's Name",    desc: 'First name shown to finder',          parentKey: 'childName',     sensitive: false },
+  { key: 'childName',     label: "Child's Name",    desc: 'First name shown to finder',          parentKey: 'childName',     sensitive: true  },
   { key: 'photo',         label: "Child's Photo",   desc: 'Photo shown to finder',               parentKey: null,            sensitive: true  },
   { key: 'phones',        label: 'Phone Numbers',   desc: 'Primary and backup contact numbers',  parentKey: null,            sensitive: true  },
   { key: 'address',       label: 'Home Address',    desc: 'Home address for reunion',            parentKey: 'address',       sensitive: true  },
@@ -329,7 +330,6 @@ export default function TagDetailScreen({ route, navigation }) {
   const [tag, setTag] = useState(initialTag);
   const { parent, updateParent } = useAuth();
 
-  const [lostLoading, setLostLoading] = useState(false);
   const [labelEditing, setLabelEditing] = useState(false);
   const [labelValue, setLabelValue] = useState(tag.label || '');
   const [labelSaving, setLabelSaving] = useState(false);
@@ -347,37 +347,9 @@ export default function TagDetailScreen({ route, navigation }) {
   const child = tag.childId ? (parent?.children || []).find((c) => c._id === tag.childId) : null;
   const resolved = resolveTagIdentity(tag, parent, child);
 
-  async function handleLostModeToggle() {
-    const newVal = !tag.lostMode;
-    Alert.alert(
-      newVal ? 'Turn Privacy Mode Off?' : 'Turn Privacy Mode On?',
-      newVal
-        ? 'Anyone who scans this tag will immediately see every field you have '
-          + 'enabled — including phone numbers, and the address or medical note if '
-          + 'you turned those on.\n\nUntil now they have seen only a privacy screen. '
-          + 'You can turn Privacy Mode back on at any time.'
-        : 'Finders go back to a privacy screen. They can still alert you, but see '
-          + 'none of your personal information.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: newVal ? 'Show My Info' : 'Hide My Info',
-          style: newVal ? 'destructive' : 'default',
-          onPress: async () => {
-            setLostLoading(true);
-            try {
-              await setLostMode(tag.tagId, newVal);
-              setTag((p) => ({ ...p, lostMode: newVal }));
-            } catch (err) {
-              Alert.alert('Error', getErrorMessage(err));
-            } finally {
-              setLostLoading(false);
-            }
-          },
-        },
-      ]
-    );
-  }
+  // Privacy Mode: agreements the first time on this tag, a plain confirmation
+  // after that — same flow as the dashboard card and the tap-alert sheet.
+  const privacy = usePrivacySwitch(tag, (patch) => setTag((p) => ({ ...p, ...patch })));
 
   function handleStatusToggle() {
     if (tag.status === 'active') {
@@ -415,7 +387,8 @@ export default function TagDetailScreen({ route, navigation }) {
   }
 
   function handleFieldToggle(field, newValue) {
-    if (newValue && SENSITIVE_FIELDS.includes(field)) {
+    // Its agreement first — once per tag, so only if none is on file yet.
+    if (newValue && needsConsentToEnable(tag, field)) {
       setPendingField(field);
       setDisclaimerVisible(true);
     } else {
@@ -423,13 +396,25 @@ export default function TagDetailScreen({ route, navigation }) {
     }
   }
 
-  async function applyFieldToggle(field, newValue) {
+  async function applyFieldToggle(field, newValue, agree) {
     const newVf = { ...visibleFields, [field]: newValue };
     try {
-      await updateTagSettings(tag.tagId, newVf);
-      setTag((p) => ({ ...p, visibleFields: newVf }));
+      const data = await updateTagSettings(tag.tagId, newVf, undefined, agree);
+      setTag((p) => ({
+        ...p,
+        visibleFields: data.visibleFields || newVf,
+        ...(data.consents ? { consents: data.consents } : {}),
+      }));
     } catch (err) {
-      Alert.alert('Error', getErrorMessage(err));
+      const need = agreementRequired(err);
+      if (need && need.fields.includes(field)) {
+        // The server has no agreement on file after all — show it now.
+        syncDisclaimerVersion(need.version);
+        setPendingField(field);
+        setDisclaimerVisible(true);
+      } else {
+        Alert.alert('Error', getErrorMessage(err));
+      }
     }
   }
 
@@ -511,10 +496,10 @@ export default function TagDetailScreen({ route, navigation }) {
         {/* ── Privacy Mode ── */}
         <TouchableOpacity
           style={[styles.lostButton, isLost ? styles.lostButtonActive : styles.lostButtonInactive]}
-          onPress={handleLostModeToggle}
-          disabled={lostLoading}
+          onPress={privacy.toggle}
+          disabled={privacy.busy || !isActive}
         >
-          {lostLoading
+          {privacy.busy
             ? <ActivityIndicator color="#fff" />
             : <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 <Ionicons name={isLost ? 'lock-closed' : 'eye'} size={19} color="#fff" />
@@ -645,9 +630,17 @@ export default function TagDetailScreen({ route, navigation }) {
       <DisclaimerModal
         visible={disclaimerVisible}
         fieldName={pendingField}
-        onAgree={() => { setDisclaimerVisible(false); if (pendingField) { applyFieldToggle(pendingField, true); setPendingField(null); } }}
+        onAgree={(version) => {
+          setDisclaimerVisible(false);
+          if (pendingField) {
+            applyFieldToggle(pendingField, true, { [pendingField]: version });
+            setPendingField(null);
+          }
+        }}
         onCancel={() => { setDisclaimerVisible(false); setPendingField(null); }}
       />
+
+      {privacy.modal}
 
       <ChildFormModal
         visible={childModalVisible}

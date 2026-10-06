@@ -30,7 +30,7 @@ const FALLBACK_CATALOG = {
     { id: 'starter', label: 'Starter',     priceCents: 1499, tagCount: 1, inStock: false, assorted: false, note: null },
     { id: 'family',  label: 'Family Pack', priceCents: 3499, tagCount: 3, inStock: false, assorted: true,  note: null },
     { id: 'bundle',  label: 'Bundle',      priceCents: 4999, tagCount: 7, inStock: false, assorted: true,
-      note: 'Includes a bonus 7th patch in a random design.' },
+      note: 'One of the 7 patches comes in a surprise design.' },
   ],
   designs: [{ id: 'dino', name: 'Dinosaur' }, { id: 'bear', name: 'Bear' }, { id: 'rocket', name: 'Rocket' }],
   shipping: { standardCents: 299, freeOverCents: 2500, countries: ['US', 'CA'] },

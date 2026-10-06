@@ -10,7 +10,8 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { updateTag, setLostMode, getErrorMessage } from '../api';
+import { updateTag, getErrorMessage } from '../api';
+import usePrivacySwitch from '../usePrivacySwitch';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
 import { useAuth } from '../AuthContext';
@@ -20,7 +21,6 @@ export default function TagCard({ tag: initialTag, onUpdate, onPress }) {
   const [labelEditing, setLabelEditing] = useState(false);
   const [labelDraft, setLabelDraft] = useState(tag.label || '');
   const [labelSaving, setLabelSaving] = useState(false);
-  const [privacyLoading, setPrivacyLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
   const { parent } = useAuth();
 
@@ -36,6 +36,9 @@ export default function TagCard({ tag: initialTag, onUpdate, onPress }) {
     onUpdate?.(updated);
   }
 
+  const privacy = usePrivacySwitch(tag, update);
+  const privacyLoading = privacy.busy;
+
   async function handleLabelSave() {
     setLabelSaving(true);
     try {
@@ -49,18 +52,6 @@ export default function TagCard({ tag: initialTag, onUpdate, onPress }) {
     }
   }
 
-  async function handlePrivacyToggle() {
-    const newSharing = !sharingOn;
-    setPrivacyLoading(true);
-    try {
-      await setLostMode(tag.tagId, newSharing);
-      update({ lostMode: newSharing });
-    } catch (err) {
-      Alert.alert('Error', getErrorMessage(err));
-    } finally {
-      setPrivacyLoading(false);
-    }
-  }
 
   function handleStatusToggle() {
     const newStatus = isActive ? 'inactive' : 'active';
@@ -208,7 +199,7 @@ export default function TagCard({ tag: initialTag, onUpdate, onPress }) {
         </View>
         <TouchableOpacity
           style={[styles.privacyToggle, sharingOn && styles.privacyToggleOn]}
-          onPress={handlePrivacyToggle}
+          onPress={privacy.toggle}
           disabled={privacyLoading || !isActive}
           activeOpacity={0.8}
         >
@@ -219,6 +210,7 @@ export default function TagCard({ tag: initialTag, onUpdate, onPress }) {
         </TouchableOpacity>
       </View>
 
+      {privacy.modal}
     </View>
   );
 }

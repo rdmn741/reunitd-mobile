@@ -10,19 +10,21 @@ import {
   Alert,
   Switch,
 } from 'react-native';
-import { getTags, setLostMode, updateTagSettings, getErrorMessage } from '../api';
-import DisclaimerModal from './DisclaimerModal';
+import { getTags, updateTagSettings, getErrorMessage, agreementRequired } from '../api';
+import DisclaimerModal, { syncDisclaimerVersion } from './DisclaimerModal';
+import usePrivacySwitch from '../usePrivacySwitch';
+import { needsConsentToEnable } from '../consent';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
 
-// The info fields a guardian can reveal to finders. Sensitive ones get a
-// confirmation before they're exposed on the public scan page.
+// The info fields a guardian can reveal to finders. Each needs its agreement
+// once per tag before it's shown on the public scan page (src/consent.js).
 const FIELDS = [
-  { key: 'childName',     label: "Child's Name",   sensitive: false },
-  { key: 'photo',         label: "Child's Photo",  sensitive: true },
-  { key: 'phones',        label: 'Phone Numbers',  sensitive: true },
-  { key: 'address',       label: 'Home Address',   sensitive: true },
-  { key: 'emergencyNote', label: 'Emergency Note', sensitive: true },
+  { key: 'childName',     label: "Child's Name" },
+  { key: 'photo',         label: "Child's Photo" },
+  { key: 'phones',        label: 'Phone Numbers' },
+  { key: 'address',       label: 'Home Address' },
+  { key: 'emergencyNote', label: 'Emergency Note' },
 ];
 
 /**
@@ -33,7 +35,6 @@ const FIELDS = [
 export default function QuickActionSheet({ visible, tagId, scanInfo, onClose, onOpenDetails }) {
   const [loading, setLoading] = useState(false);
   const [tag, setTag] = useState(null);
-  const [lostBusy, setLostBusy] = useState(false);
   const [fieldBusy, setFieldBusy] = useState(null);
   const [disclaimerField, setDisclaimerField] = useState(null);
 
@@ -59,38 +60,38 @@ export default function QuickActionSheet({ visible, tagId, scanInfo, onClose, on
   const visibleFields =
     (tag && tag.visibleFields) || { childName: false, phones: false, address: false, emergencyNote: false, photo: false };
 
-  async function toggleLost() {
-    if (!tag) return;
-    const newVal = !tag.lostMode;
-    setLostBusy(true);
-    try {
-      await setLostMode(tag.tagId, newVal);
-      setTag((p) => ({ ...p, lostMode: newVal }));
-    } catch (err) {
-      Alert.alert('Error', getErrorMessage(err));
-    } finally {
-      setLostBusy(false);
-    }
-  }
+  // Same flow as the tag screen: agreements the first time, then a confirmation.
+  const privacy = usePrivacySwitch(tag, (patch) => setTag((p) => ({ ...p, ...patch })));
+  const lostBusy = privacy.busy;
 
-  function onToggleField(field, newValue, sensitive) {
-    if (newValue && sensitive) {
-      // Enabling a sensitive field requires the full privacy disclaimer.
+  function onToggleField(field, newValue) {
+    if (newValue && needsConsentToEnable(tag, field)) {
+      // Its agreement first — once per tag, so only if none is on file yet.
       setDisclaimerField(field);
     } else {
       applyField(field, newValue);
     }
   }
 
-  async function applyField(field, newValue) {
+  async function applyField(field, newValue, agree) {
     if (!tag) return;
     const newVf = { ...visibleFields, [field]: newValue };
     setFieldBusy(field);
     try {
-      await updateTagSettings(tag.tagId, newVf);
-      setTag((p) => ({ ...p, visibleFields: newVf }));
+      const data = await updateTagSettings(tag.tagId, newVf, undefined, agree);
+      setTag((p) => ({
+        ...p,
+        visibleFields: data.visibleFields || newVf,
+        ...(data.consents ? { consents: data.consents } : {}),
+      }));
     } catch (err) {
-      Alert.alert('Error', getErrorMessage(err));
+      const need = agreementRequired(err);
+      if (need && need.fields.includes(field)) {
+        syncDisclaimerVersion(need.version);
+        setDisclaimerField(field);
+      } else {
+        Alert.alert('Error', getErrorMessage(err));
+      }
     } finally {
       setFieldBusy(null);
     }
@@ -121,7 +122,7 @@ export default function QuickActionSheet({ visible, tagId, scanInfo, onClose, on
             <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ paddingBottom: 4 }}>
               <TouchableOpacity
                 style={[styles.lostBtn, tag.lostMode ? styles.lostOn : styles.lostOff]}
-                onPress={toggleLost}
+                onPress={privacy.toggle}
                 disabled={lostBusy}
                 activeOpacity={0.85}
               >
@@ -146,7 +147,7 @@ export default function QuickActionSheet({ visible, tagId, scanInfo, onClose, on
                   ) : (
                     <Switch
                       value={!!visibleFields[f.key]}
-                      onValueChange={(v) => onToggleField(f.key, v, f.sensitive)}
+                      onValueChange={(v) => onToggleField(f.key, v)}
                       trackColor={{ true: '#2563eb', false: '#d1d5db' }}
                     />
                   )}
@@ -180,13 +181,14 @@ export default function QuickActionSheet({ visible, tagId, scanInfo, onClose, on
       <DisclaimerModal
         visible={!!disclaimerField}
         fieldName={disclaimerField}
-        onAgree={() => {
+        onAgree={(version) => {
           const f = disclaimerField;
           setDisclaimerField(null);
-          if (f) applyField(f, true);
+          if (f) applyField(f, true, { [f]: version });
         }}
         onCancel={() => setDisclaimerField(null)}
       />
+      {privacy.modal}
     </Modal>
   );
 }

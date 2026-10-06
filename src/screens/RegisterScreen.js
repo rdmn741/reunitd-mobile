@@ -18,6 +18,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
 import Wordmark from '../components/Wordmark';
 
+// Device language, best-effort. Intl is available in Hermes, but guard anyway —
+// a missing locale must never block a signup.
+function deviceLocale() {
+  try {
+    return (Intl.DateTimeFormat().resolvedOptions().locale || '').slice(0, 10);
+  } catch (e) {
+    return '';
+  }
+}
+
 export default function RegisterScreen({ navigation }) {
   const { completeEmailVerify } = useAuth();
   const [form, setForm] = useState({
@@ -64,6 +74,13 @@ export default function RegisterScreen({ navigation }) {
         name: name.trim(),
         email: email.trim(),
         password,
+        // Attribute app signups to their own channel so they aren't lumped in
+        // with web "direct" traffic when measuring marketing spend.
+        acquisition: {
+          source: 'mobile-app',
+          medium: Platform.OS === 'ios' ? 'ios' : 'android',
+          locale: deviceLocale(),
+        },
       };
       if (primaryPhone.trim()) payload.primaryPhone = primaryPhone.trim();
 
